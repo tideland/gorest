@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/tideland/golib/audit"
-	
-	"github.com/tideland/gorest/rest"
+
 	"github.com/tideland/gorest/handlers"
+	"github.com/tideland/gorest/rest"
 	"github.com/tideland/gorest/restaudit"
 )
 

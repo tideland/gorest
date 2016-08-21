@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/logger"
-	
+
 	"github.com/tideland/gorest/rest"
 )
 

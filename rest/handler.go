@@ -79,7 +79,7 @@ type OptionsResourceHandler interface {
 // handleJob dispatches the passed job to the right method of the
 // passed handler.
 func handleJob(handler ResourceHandler, job Job) (bool, error) {
-	id := func () string {
+	id := func() string {
 		return fmt.Sprintf("%s@%s/%s", handler.ID(), job.Domain(), job.Resource())
 	}
 	switch job.Request().Method {

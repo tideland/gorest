@@ -12,10 +12,10 @@
 // More interesting are the other interfaces like GetResourceHandler
 // which defines the Get() method for the HTTP request method GET.
 // Others are for PUT, POST, HEAD, PATCH, DELETE, and OPTIONS. Their
-// according methods get a Job as argument. It provides convenient 
+// according methods get a Job as argument. It provides convenient
 // helpers for the processing of the job.
 //
-// The processing methods return two values: a boolean and an error. 
+// The processing methods return two values: a boolean and an error.
 // The latter is pretty clear, it signals a job processing error. The
 // boolean is more interesting. Registering a handler is based on a
 // domain and a resource. The URL

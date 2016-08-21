@@ -5,8 +5,8 @@
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-// The Tideland Go REST Server Library restaudit package is a little 
-// helper package for the unit testing of the rest package and the 
+// The Tideland Go REST Server Library restaudit package is a little
+// helper package for the unit testing of the rest package and the
 // resource handlers.
 package restaudit
 

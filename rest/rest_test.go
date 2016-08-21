@@ -21,7 +21,7 @@ import (
 
 	"github.com/tideland/golib/audit"
 	"github.com/tideland/golib/logger"
-	
+
 	"github.com/tideland/gorest/rest"
 	"github.com/tideland/gorest/restaudit"
 )

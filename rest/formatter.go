@@ -113,7 +113,7 @@ func (gf *gobFormatter) Read(data interface{}) error {
 // jsonFormatter implements Formatter for the JSON encoding. Writing
 // also can be done with HTML escaping.
 type jsonFormatter struct {
-	job    Job
+	job  Job
 	html bool
 }
 
