@@ -13,7 +13,6 @@ package restaudit
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -55,10 +54,10 @@ type TestServer interface {
 	Close()
 
 	// DoRequest performs a request against the test server.
-	DoRequest(req *Request) (*Response, error)
+	DoRequest(req *Request) *Response
 
 	// DoUpload is a special request for uploading a file.
-	DoUpload(path, fieldname, filename, data string) (*Response, error)
+	DoUpload(path, fieldname, filename, data string) *Response
 }
 
 // testServer implements the TestServer interface.

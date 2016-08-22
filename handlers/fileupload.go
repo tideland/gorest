@@ -13,7 +13,6 @@ package handlers
 
 import (
 	"mime/multipart"
-	"path/filepath"
 
 	"github.com/tideland/golib/errors"
 	"github.com/tideland/golib/logger"

@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"testing"
-	"time"
 
 	"github.com/tideland/golib/audit"
 	"github.com/tideland/golib/logger"
@@ -45,7 +44,7 @@ func TestGetJSON(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "json", NewTestHandler("json", assert))
+	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -66,7 +65,7 @@ func TestPutJSON(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "json", NewTestHandler("json", assert))
+	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	reqData := TestRequestData{"foo", "bar", "4711"}
@@ -90,7 +89,7 @@ func TestGetXML(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "xml", NewTestHandler("xml", assert))
+	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -108,7 +107,7 @@ func TestPutXML(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "xml", NewTestHandler("xml", assert))
+	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	reqData := TestRequestData{"foo", "bar", "4711"}
@@ -132,7 +131,7 @@ func TestPutGOB(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "gob", NewTestHandler("putgob", assert))
+	err := mux.Register("test", "gob", NewTestHandler("putgob", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	reqData := TestCounterData{"test", 4711}
@@ -160,7 +159,7 @@ func TestLongPath(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("content", "blog", NewTestHandler("default", assert))
+	err := mux.Register("content", "blog", NewTestHandler("default", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -177,7 +176,7 @@ func TestFallbackDefault(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("default", "default", NewTestHandler("default", assert))
+	err := mux.Register("default", "default", NewTestHandler("default", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -194,7 +193,7 @@ func TestHandlerStack(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.RegisterAll(rest.Registrations{
+	err := mux.RegisterAll(rest.Registrations{
 		{"authentication", "login", NewTestHandler("login", assert)},
 		{"test", "stack", NewAuthHandler("foo", assert)},
 		{"test", "stack", NewTestHandler("stack", assert)},
@@ -205,7 +204,6 @@ func TestHandlerStack(t *testing.T) {
 		Method: "GET",
 		Path:   "/test/stack",
 	})
-	sceneID := resp.Cookies["sceneID"]
 	assert.Substring("<li>Resource: login</li>", string(resp.Body))
 	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
@@ -213,7 +211,7 @@ func TestHandlerStack(t *testing.T) {
 		Header: restaudit.KeyValues{"password": "foo"},
 	})
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
-	resp = ts.DoRequest(ts, &rest.TestRequest{
+	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
 		Path:   "/test/stack",
 		Header: restaudit.KeyValues{"password": "foo"},
@@ -228,7 +226,7 @@ func TestMethodNotSupported(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "method", NewTestHandler("method", assert))
+	err := mux.Register("test", "method", NewTestHandler("method", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -322,7 +320,7 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 		job.XML().Write(data)
 	case job.AcceptsContentType(rest.ContentTypeJSON):
 		th.assert.Logf("GET JSON")
-		ws.JSON(true).Write(data)
+		job.JSON(true).Write(data)
 	default:
 		th.assert.Logf("GET HTML")
 		job.RenderTemplate("test:context:html", data)
@@ -342,7 +340,7 @@ func (th *TestHandler) Put(job rest.Job) (bool, error) {
 		if err != nil {
 			job.JSON(true).Write(TestErrorData{err.Error()})
 		} else {
-			job.JSON(true).Wrtie(data)
+			job.JSON(true).Write(data)
 		}
 	case job.HasContentType(rest.ContentTypeXML):
 		err := job.XML().Read(&data)

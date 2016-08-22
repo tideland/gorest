@@ -43,7 +43,7 @@ func TestWrapperHandler(t *testing.T) {
 	handler := func(rw http.ResponseWriter, r *http.Request) {
 		rw.Write([]byte(data))
 	}
-	err = mux.Register("test", "wrapper", handlers.NewWrapperHandler("wrapper", handler))
+	err := mux.Register("test", "wrapper", handlers.NewWrapperHandler("wrapper", handler))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -105,7 +105,7 @@ func TestFileUploadHandler(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "files", handlers.NewFileUploadHandler("files", processor))
+	err := mux.Register("test", "files", handlers.NewFileUploadHandler("files", processor))
 	assert.Nil(err)
 	// Perform test requests.
 	ts.DoUpload("/test/files", "testfile", "test.txt", data)
