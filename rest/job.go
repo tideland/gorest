@@ -48,6 +48,9 @@ type Job interface {
 	// ResourceID return the requests resource ID.
 	ResourceID() string
 
+	// Context returns a context containing the job.
+	Context() context.Context
+
 	// AcceptsContentType checks if the requestor accepts a given content type.
 	AcceptsContentType(contentType string) bool
 

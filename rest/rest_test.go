@@ -194,9 +194,9 @@ func TestHandlerStack(t *testing.T) {
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.RegisterAll(rest.Registrations{
-		{"authentication", "login", NewTestHandler("login", assert)},
-		{"test", "stack", NewAuthHandler("foo", assert)},
-		{"test", "stack", NewTestHandler("stack", assert)},
+		{"authentication", "token", NewTestHandler("auth:token", assert)},
+		{"test", "stack", NewAuthHandler("stack:auth", assert)},
+		{"test", "stack", NewTestHandler("stack:test", assert)},
 	})
 	assert.Nil(err)
 	// Perform test requests.
@@ -204,17 +204,19 @@ func TestHandlerStack(t *testing.T) {
 		Method: "GET",
 		Path:   "/test/stack",
 	})
-	assert.Substring("<li>Resource: login</li>", string(resp.Body))
+	token := resp.Header["Token"]
+	assert.Equal(token, "foo")
+	assert.Substring("<li>Resource: token</li>", string(resp.Body))
 	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
 		Path:   "/test/stack",
-		Header: restaudit.KeyValues{"password": "foo"},
+		Header: restaudit.KeyValues{"token": "foo"},
 	})
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
 	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
 		Path:   "/test/stack",
-		Header: restaudit.KeyValues{"password": "foo"},
+		Header: restaudit.KeyValues{"token": "foo"},
 	})
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
 }
@@ -241,16 +243,16 @@ func TestMethodNotSupported(t *testing.T) {
 //--------------------
 
 type AuthHandler struct {
-	password string
-	assert   audit.Assertion
+	id     string
+	assert audit.Assertion
 }
 
-func NewAuthHandler(password string, assert audit.Assertion) rest.ResourceHandler {
-	return &AuthHandler{password, assert}
+func NewAuthHandler(id string, assert audit.Assertion) rest.ResourceHandler {
+	return &AuthHandler{id, assert}
 }
 
 func (ah *AuthHandler) ID() string {
-	return ah.password
+	return ah.id
 }
 
 func (ah *AuthHandler) Init(env rest.Environment, domain, resource string) error {
@@ -258,6 +260,11 @@ func (ah *AuthHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (ah *AuthHandler) Get(job rest.Job) (bool, error) {
+	token := job.Request().Header.Get("Token")
+	if token != "foo" {
+		job.Redirect("authentication", "token", "")
+		return false, nil
+	}
 	return true, nil
 }
 
@@ -313,6 +320,9 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
+	if th.id == "auth:token" {
+		job.ResponseWriter().Header().Add("Token", "foo")
+	}
 	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID()}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeXML):

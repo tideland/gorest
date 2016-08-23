@@ -18,6 +18,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 
 	"github.com/tideland/golib/audit"
 )
@@ -40,6 +41,7 @@ type Request struct {
 
 // Response wraps all infos of a test response.
 type Response struct {
+	Header  KeyValues
 	Cookies KeyValues
 	Body    []byte
 }
@@ -104,17 +106,7 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 	// Now do it.
 	resp, err := c.Do(httpReq)
 	ts.assert.Nil(err, "cannot perform test request")
-	respBody, err := ioutil.ReadAll(resp.Body)
-	ts.assert.Nil(err, "cannot read response")
-	defer resp.Body.Close()
-	cookies := KeyValues{}
-	for _, cookie := range resp.Cookies() {
-		cookies[cookie.Name] = cookie.Value
-	}
-	return &Response{
-		Cookies: cookies,
-		Body:    respBody,
-	}
+	return ts.response(resp)
 }
 
 // DoUpload is specified on the TestServer interface.
@@ -135,15 +127,25 @@ func (ts *testServer) DoUpload(path, fieldname, filename, data string) *Response
 	// And now do it.
 	resp, err := c.Post(url, contentType, buffer)
 	ts.assert.Nil(err, "cannot perform test upload")
-	respBody, err := ioutil.ReadAll(resp.Body)
-	ts.assert.Nil(err, "cannot read response")
-	defer resp.Body.Close()
-	cookies := KeyValues{}
-	for _, cookie := range resp.Cookies() {
-		cookies[cookie.Name] = cookie.Value
+	return ts.response(resp)
+}
+
+// response creates a Response instance out of the http.Response-
+func (ts *testServer) response(hr *http.Response) *Response {
+	respHeader := KeyValues{}
+	for key, values := range hr.Header {
+		respHeader[key] = strings.Join(values, ", ")
 	}
+	respCookies := KeyValues{}
+	for _, cookie := range hr.Cookies() {
+		respCookies[cookie.Name] = cookie.Value
+	}
+	respBody, err := ioutil.ReadAll(hr.Body)
+	ts.assert.Nil(err, "cannot read response")
+	defer hr.Body.Close()
 	return &Response{
-		Cookies: cookies,
+		Header:  respHeader,
+		Cookies: respCookies,
 		Body:    respBody,
 	}
 }
