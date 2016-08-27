@@ -12,13 +12,12 @@ package jwt
 //--------------------
 
 import (
-	"crypto"
-	"crypto/hmac"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"hash"
 	"strings"
+
+	"github.com/tideland/golib/errors"
 )
 
 //--------------------
@@ -35,14 +34,14 @@ type JWT interface {
 
 type jwtHeader struct {
 	Type      string `json:"typ"`
-	Algorithm string `json:"alg"`  
+	Algorithm string `json:"alg"`
 }
 
 type jwt struct {
 	payload   interface{}
-	key		  Key
+	key       Key
 	algorithm Algorithm
-	token	  string
+	token     string
 }
 
 // Encodes creates a JSON Web Token for the given payload
@@ -50,10 +49,10 @@ type jwt struct {
 func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
 	jwt := &jwt{
 		payload:   payload,
-		key:	   key,
+		key:       key,
 		algorithm: algorithm,
 	}
-	headerPart, err := marshallAndEncode(jwtHeader{"JWT", algorithm})
+	headerPart, err := marshallAndEncode(jwtHeader{"JWT", string(algorithm)})
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "header")
 	}
@@ -62,12 +61,12 @@ func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "payload")
 	}
 	dataParts := headerPart + "." + payloadPart
-	signaturePart, err := signAndEncode(dataParts, key, algorithm)
+	signaturePart, err := signAndEncode([]byte(dataParts), key, algorithm)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "signature")
 	}
 	jwt.token = dataParts + "." + signaturePart
-	return jwt, nil	
+	return jwt, nil
 }
 
 // Decode creates a token out of a string without verification. The passed
@@ -88,7 +87,7 @@ func Decode(token string, payload interface{}) (JWT, error) {
 	}
 	return &jwt{
 		payload:   payload,
-		algorithm: header.Algorithm,
+		algorithm: Algorithm(header.Algorithm),
 	}, nil
 }
 
@@ -104,7 +103,7 @@ func Verify(token string, payload interface{}, key Key) (JWT, error) {
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "header")
 	}
-	err := decodeAndVerify(parts, key, header.Algorithm)
+	err = decodeAndVerify(parts, key, Algorithm(header.Algorithm))
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "signature")
 	}
@@ -115,7 +114,7 @@ func Verify(token string, payload interface{}, key Key) (JWT, error) {
 	return &jwt{
 		payload:   payload,
 		key:       key,
-		algorithm: header.Algorithm,
+		algorithm: Algorithm(header.Algorithm),
 	}, nil
 }
 
@@ -130,7 +129,7 @@ func (jwt *jwt) Key() (Key, error) {
 	if jwt.key == nil {
 		return nil, errors.New(ErrNoKey, errorMessages)
 	}
-	return jwt.key
+	return jwt.key, nil
 }
 
 // Algorithm returns the algorithm of the token after encoding,
@@ -141,7 +140,7 @@ func (jwt *jwt) Algorithm() Algorithm {
 
 // String implements the stringer interface.
 func (jwt *jwt) String() string {
-	return jwt.token	
+	return jwt.token
 }
 
 //--------------------
@@ -151,9 +150,9 @@ func (jwt *jwt) String() string {
 // marshallAndEncode marshals the passed value to JSON and
 // creates a BASE64 string out of it.
 func marshallAndEncode(value interface{}) (string, error) {
-	jsonValue, err := json.Marshall(value)
+	jsonValue, err := json.Marshal(value)
 	if err != nil {
-		return nil, errors.Annotate(ErrJSONMarshalling, errorMessages)
+		return "", errors.Annotate(err, ErrJSONMarshalling, errorMessages)
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(jsonValue)
 	return encoded, nil
@@ -166,7 +165,7 @@ func decodeAndUnmarshall(part string, value interface{}) error {
 	if err != nil {
 		return errors.Annotate(err, ErrInvalidTokenPart, errorMessages)
 	}
-	err = json.Unmarshall(decoded, value)
+	err = json.Unmarshal(decoded, value)
 	if err != nil {
 		return errors.Annotate(err, ErrJSONUnmarshalling, errorMessages)
 	}
@@ -177,7 +176,10 @@ func decodeAndUnmarshall(part string, value interface{}) error {
 // payload) of the token using the passed key and algorithm. The result
 // is then encoded to BASE64.
 func signAndEncode(data []byte, key Key, algorithm Algorithm) (string, error) {
-	sig := algorithm.Sign(data, key)
+	sig, err := algorithm.Sign(data, key)
+	if err != nil {
+		return "", err
+	}
 	encoded := base64.RawURLEncoding.EncodeToString(sig)
 	return encoded, nil
 }
@@ -185,7 +187,7 @@ func signAndEncode(data []byte, key Key, algorithm Algorithm) (string, error) {
 // decodeAndVerify decodes a BASE64 encoded signature and verifies
 // the correct signing of the data part (header and payload) using the
 // passed key and algorithm.
-func decodeAndVerify(parts []string, key Key], algorithm Algorithm) error {
+func decodeAndVerify(parts []string, key Key, algorithm Algorithm) error {
 	data := []byte(parts[0] + "." + parts[1])
 	sig, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {

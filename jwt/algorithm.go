@@ -18,8 +18,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/asn1"
-	"hash"
-	
+	"math/big"
+
 	"github.com/tideland/golib/errors"
 )
 
@@ -49,11 +49,11 @@ type ecPoint struct {
 type Key interface{}
 
 // sign signs the passed data based on the key and the passed hash.
-func (k Key) sign(data []byte, h crypto.Hash, isRSAPSS bool) (Signature, error) {
+func sign(data []byte, k Key, h crypto.Hash, isRSAPSS bool) (Signature, error) {
 	hashSum := func() []byte {
 		hasher := h.New()
 		hasher.Write(data)
-		return hasher.Sum(nil)	
+		return hasher.Sum(nil)
 	}
 	switch key := k.(type) {
 	case *ecdsa.PrivateKey:
@@ -69,17 +69,17 @@ func (k Key) sign(data []byte, h crypto.Hash, isRSAPSS bool) (Signature, error) 
 		return Signature(sig), nil
 	case []byte:
 		// HMAC algorithms.
-		hasher := hmac.New(h.New(), key)
+		hasher := hmac.New(h.New, key)
 		hasher.Write(data)
 		sig := hasher.Sum(nil)
 		return Signature(sig), nil
-	case *rsa.PublicKey:
+	case *rsa.PrivateKey:
 		// RSA and RSAPSS algorithms.
 		if isRSAPSS {
 			// RSAPSS.
 			options := &rsa.PSSOptions{
 				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:	    h,
+				Hash:       h,
 			}
 			sig, err := rsa.SignPSS(rand.Reader, key, h, hashSum(), options)
 			if err != nil {
@@ -102,11 +102,11 @@ func (k Key) sign(data []byte, h crypto.Hash, isRSAPSS bool) (Signature, error) 
 
 // verify checks if the signature is correct for the passed data
 // based on the key and the passed hash.
-func (k Key) verify(data []byte, sig Signature, h crypto.Hash, isRSAPSS bool) error {
+func verify(data []byte, sig Signature, k Key, h crypto.Hash, isRSAPSS bool) error {
 	hashSum := func() []byte {
 		hasher := h.New()
 		hasher.Write(data)
-		return hasher.Sum(nil)	
+		return hasher.Sum(nil)
 	}
 	switch key := k.(type) {
 	case *ecdsa.PublicKey:
@@ -121,7 +121,7 @@ func (k Key) verify(data []byte, sig Signature, h crypto.Hash, isRSAPSS bool) er
 		return nil
 	case []byte:
 		// HMAC algorithms.
-		expectedSig, err := k.sign(data, h, isRSAPSS)
+		expectedSig, err := sign(data, k, h, isRSAPSS)
 		if err != nil {
 			return errors.Annotate(err, ErrCannotVerify, errorMessages)
 		}
@@ -135,15 +135,15 @@ func (k Key) verify(data []byte, sig Signature, h crypto.Hash, isRSAPSS bool) er
 			// RSAPSS.
 			options := &rsa.PSSOptions{
 				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:	    h,
+				Hash:       h,
 			}
-			if err := rsa.VerifyPSS(key, h, hasSum(), sig, options); err != nil {
-				return errors.Annotate(ErrInvalidSignature, errorMessages)
+			if err := rsa.VerifyPSS(key, h, hashSum(), sig, options); err != nil {
+				return errors.Annotate(err, ErrInvalidSignature, errorMessages)
 			}
 		} else {
 			// RSA.
-			if err := rsa.VerifyPKCS1v15(key, h, hashSum(), sig): err != nil {
-				return errors.Annotate(ErrInvalidSignature, errorMessages)
+			if err := rsa.VerifyPKCS1v15(key, h, hashSum(), sig); err != nil {
+				return errors.Annotate(err, ErrInvalidSignature, errorMessages)
 			}
 		}
 		return nil
@@ -180,13 +180,13 @@ const (
 func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
 	switch a {
 	case ES256, HS256, PS256, RS256:
-		return key.sign(data, crypto.SHA256, a.isRSAPSS)
+		return sign(data, key, crypto.SHA256, a.isRSAPSS())
 	case ES384, HS384, PS384, RS384:
-		return key.sign(data, crypto.SHA384, a.isRSAPSS)
+		return sign(data, key, crypto.SHA384, a.isRSAPSS())
 	case ES512, HS512, PS512, RS512:
-		return key.sign(data, crypto.SHA512, a.isRSAPSS)
+		return sign(data, key, crypto.SHA512, a.isRSAPSS())
 	default:
-		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, algorithm)
+		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, a)
 	}
 }
 
@@ -195,13 +195,13 @@ func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
 func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
 	switch a {
 	case ES256, HS256, PS256, RS256:
-		return key.verify(data, sig, crypto.SHA256, a.isRSAPSS)
+		return verify(data, sig, key, crypto.SHA256, a.isRSAPSS())
 	case ES384, HS384, PS384, RS384:
-		return key.verify(data, sig, crypto.SHA384, a.isRSAPSS)
+		return verify(data, sig, key, crypto.SHA384, a.isRSAPSS())
 	case ES512, HS512, PS512, RS512:
-		return key.verify(data, sig, crypto.SHA512, a.isRSAPSS)
+		return verify(data, sig, key, crypto.SHA512, a.isRSAPSS())
 	default:
-		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, algorithm)
+		return errors.New(ErrInvalidAlgorithm, errorMessages, a)
 	}
 }
 

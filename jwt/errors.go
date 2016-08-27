@@ -22,14 +22,13 @@ import (
 const (
 	ErrCannotEncode = iota + 1
 	ErrCannotDecode
+	ErrCannotSign
 	ErrCannotVerify
 	ErrNoKey
 	ErrJSONMarshalling
 	ErrJSONUnmarshalling
 	ErrInvalidTokenPart
 	ErrInvalidAlgorithm
-	ErrCannotSign
-	ErrCannotVerify
 	ErrInvalidKeyType
 	ErrInvalidSignature
 )
@@ -37,14 +36,13 @@ const (
 var errorMessages = errors.Messages{
 	ErrCannotEncode:      "cannot encode the %s",
 	ErrCannotDecode:      "cannot decode the %s",
+	ErrCannotSign:        "cannot sign the token",
 	ErrCannotVerify:      "cannot verify the %s",
 	ErrNoKey:             "no key available, only after encoding or verifying",
-	ErrJSONMarshalling.   "errormarshalling to JSON",
+	ErrJSONMarshalling:   "error marshalling to JSON",
 	ErrJSONUnmarshalling: "error unmarshilling from JSON",
 	ErrInvalidTokenPart:  "part of the token contains invalid data",
 	ErrInvalidAlgorithm:  "signature algorithm %q is invalid",
-	ErrCannotSign:        "cannot sign the token",
-	ErrCannotVerify:      "cannot verify the token",
 	ErrInvalidKeyType:    "key type %#v is invalid",
 	ErrInvalidSignature:  "token signature is invalid",
 }
