@@ -33,8 +33,8 @@ type JWT interface {
 }
 
 type jwtHeader struct {
-	Type      string `json:"typ"`
 	Algorithm string `json:"alg"`
+	Type      string `json:"typ"`
 }
 
 type jwt struct {
@@ -52,7 +52,7 @@ func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
 		key:       key,
 		algorithm: algorithm,
 	}
-	headerPart, err := marshallAndEncode(jwtHeader{"JWT", string(algorithm)})
+	headerPart, err := marshallAndEncode(jwtHeader{string(algorithm), "JWT"})
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "header")
 	}
@@ -115,6 +115,7 @@ func Verify(token string, payload interface{}, key Key) (JWT, error) {
 		payload:   payload,
 		key:       key,
 		algorithm: Algorithm(header.Algorithm),
+		token:     token,
 	}, nil
 }
 

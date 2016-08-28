@@ -17,6 +17,8 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/asn1"
 	"math/big"
 
@@ -24,8 +26,14 @@ import (
 )
 
 //--------------------
-// CONST
+// INIT
 //--------------------
+
+// Assure linking of crypto pachages.
+func init() {
+	sha256.New()
+	sha512.New()
+}
 
 //--------------------
 // SIGNATURE

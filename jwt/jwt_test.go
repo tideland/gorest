@@ -13,7 +13,8 @@ package jwt_test
 
 import (
 	"strings"
-	
+	"testing"
+
 	"github.com/tideland/golib/audit"
 
 	"github.com/tideland/gorest/jwt"
@@ -24,22 +25,30 @@ import (
 //--------------------
 
 var (
-	hsTests = []struct{
-		payload	  testPayload
-		algorithm jwt.Algorithm
-		key		  jwt.Key
-		signature string
-	}{
-		payload: testPayload{
-			Sub:	"1234567890",
-			Name:	"John Doe",
-			Admin:	true,
-		},
-		algorithm: jwt.HS256,
-		key:		[]byte("secret"),
-		signature: "TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ",
+	payload = testPayload{
+		Sub:   "1234567890",
+		Name:  "John Doe",
+		Admin: true,
 	}
-}
+
+	hsTests = []struct {
+		algorithm jwt.Algorithm
+		key       string
+		signature string
+	}{{
+		algorithm: jwt.HS256,
+		key:       "secret",
+		signature: "TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ",
+	}, {
+		algorithm: jwt.HS384,
+		key:       "secret",
+		signature: "DtVnCyiYCsCbg8gUP-579IC2GJ7P3CtFw6nfTTPw-0lZUzqgWAo9QIQElyxOpoRm",
+	}, {
+		algorithm: jwt.HS512,
+		key:       "secret",
+		signature: "YI0rUGDq5XdRw8vW2sDLRNFMN8Waol03iSFH8I4iLzuYK7FKHaQYWzPt0BJFGrAmKJ6SjY0mJIMZqNQJFVpkuw",
+	}}
+)
 
 // TestHSAlgorithms tests the HMAC algorithms for the
 // JWT signature.
@@ -48,19 +57,19 @@ func TestHSAlgorithms(t *testing.T) {
 	for _, test := range hsTests {
 		assert.Logf("testing algorithm %q", test.algorithm)
 		// Encode.
-		jwtEncode, err := jwt.Encode(test.payload, test.key, test.algorithm)
+		jwtEncode, err := jwt.Encode(payload, []byte(test.key), test.algorithm)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
-		assert.Equal(part[2], signature)
+		assert.Equal(parts[2], test.signature)
 		// Verify.
-		var payload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &payload, test.key)
+		var verifyPayload testPayload
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, []byte(test.key))
 		assert.Nil(err)
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
-		assert.Equal(payload.Sub, test.payload.Sub)
-		assert.Equal(payload.Name, test.payload.Name)
-		assert.Equal(payload.Admin, test.payload.Admin)
+		assert.Equal(payload.Sub, verifyPayload.Sub)
+		assert.Equal(payload.Name, verifyPayload.Name)
+		assert.Equal(payload.Admin, verifyPayload.Admin)
 	}
 }
 
@@ -69,10 +78,9 @@ func TestHSAlgorithms(t *testing.T) {
 //--------------------
 
 type testPayload struct {
-	Sub		string	`json:"sub"`
-	Name	string	`json:"name"`
-	Admin 	bool	`json:"admin"`
+	Sub   string `json:"sub"`
+	Name  string `json:"name"`
+	Admin bool   `json:"admin"`
 }
-
 
 // EOF
