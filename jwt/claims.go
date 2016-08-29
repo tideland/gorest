@@ -66,7 +66,7 @@ func (c Claims) GetTime(key string) (time.Time, bool) {
 	case string:
 		t, err := time.Parse(time.RFC3339, v)
 		if err != nil {
-			return time.Time, false
+			return time.Time{}, false
 		}
 		return t, true
 	default:
@@ -105,15 +105,16 @@ func (c Claims) Contains(key string) bool {
 }
 
 // Audience retrieves the reserved "aud" claim.
-func (c Claim) Audience() ([]string, bool) {
+func (c Claims) Audience() ([]string, bool) {
 	// Little helper to cast interfaces to strings.
 	makeStrings := func(auds ...interface{}) ([]string, bool) {
-		if len(auds) == nil {
+		if len(auds) == 0 {
 			return nil, false
 		}
 		strs := make([]string, len(auds))
 		for i, aud := range auds {
-			if str, ok := aud.(string); !ok {
+			str, ok := aud.(string)
+			if !ok {
 				return nil, false
 			}
 			strs[i] = str

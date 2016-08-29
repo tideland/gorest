@@ -13,8 +13,8 @@ package jwt
 
 import (
 	"crypto/ecdsa"
-	"crypto/rsa"
-	"crypto/X509"
+	"crypto/x509"
+	// "crypto/rsa"
 	"encoding/pem"
 
 	"github.com/tideland/golib/errors"
@@ -26,29 +26,41 @@ import (
 
 // PEMToECPrivateKey converts a PEM formatted ECDSA private
 // key into its Go representation.
-func PEMToECPrivateKey(pemKey string) (*ecdsa.PrivateKey, error) {
-	if pemBlock, err := pem.Decode(pemKey); err != nil {
-		return nil, errors.Annotate(err, ErrCannotDecodePEM, errorMessages)
+func PEMToECPrivateKey(key []byte) (*ecdsa.PrivateKey, error) {
+	var block *pem.Block
+	if block, _ = pem.Decode(key); block == nil {
+		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
 	}
-	if parsedKey, err := x509.ParseECPrivateKey(pemBlock.Bytes); err != nil {
+	var parsed *ecdsa.PrivateKey
+	var err error
+	if parsed, err = x509.ParseECPrivateKey(block.Bytes); err != nil {
 		return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages)
 	}
-	return parsedKey, nil
+	return parsed, nil
 }
 
 // PEMToECPublicKey converts a PEM formatted ECDSA public
 // key into its Go representation.
-func PEMToECPrivateKey(pemKey string) (*ecdsa.PublicKey, error) {
-	if pemBlock, err := pem.Decode(pemKey); err != nil {
-		return nil, errors.Annotate(err, ErrCannotDecodePEM, errorMessages)
+func PEMToECPublicKey(key []byte) (*ecdsa.PublicKey, error) {
+	var block *pem.Block
+	if block, _ = pem.Decode(key); block == nil {
+		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
 	}
-	if parsedKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes); err != nil {
-		return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages, "DER public key")
+	var parsed interface{}
+	var err error
+	parsed, err = x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		certificate, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages, "certificate")
+		}
+		parsed = certificate.PublicKey
 	}
-	if cert, err := x509.ParseCertificate(pemBlock.Bytes); err != nil {
-		return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages, "certificate")
+	publicKey, ok := parsed.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New(ErrCannotParseECDSA, errorMessages, "public key")
 	}
-	return parsedKey, nil
+	return publicKey, nil
 }
 
 // EOF
