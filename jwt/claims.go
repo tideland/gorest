@@ -14,8 +14,6 @@ package jwt
 import (
 	"fmt"
 	"time"
-
-	"github.com/tideland/golib/errors"
 )
 
 //--------------------
@@ -243,24 +241,24 @@ func (c Claims) DeleteIdentifier() string {
 	return old
 }
 
-	// NotBefore retrieves the reserved "nbf" claim.
-	func (c Claims) NotBefore() (time.Time, bool) {
-		return c.GetTime("nbf")
-	}
-	
-	// SetNotBefore sets the reserved "nbf" claim. It returns a
-	// potential old value.
-	func (c Claims) SetNotBefore(t time.Time) time.Time {
-		return c.SetTime("nbf", t)
-	}
-	
-	// DeleteNotBefore deletes the reserved "nbf" claim. It returns
-	// a potential old value.
-	func (c Claims) DeleteNotBefore() time.Time {
-		old, _ := c.NotBefore()
-		c.Delete("nbf")
-		return old
-	}
+// NotBefore retrieves the reserved "nbf" claim.
+func (c Claims) NotBefore() (time.Time, bool) {
+	return c.GetTime("nbf")
+}
+
+// SetNotBefore sets the reserved "nbf" claim. It returns a
+// potential old value.
+func (c Claims) SetNotBefore(t time.Time) time.Time {
+	return c.SetTime("nbf", t)
+}
+
+// DeleteNotBefore deletes the reserved "nbf" claim. It returns
+// a potential old value.
+func (c Claims) DeleteNotBefore() time.Time {
+	old, _ := c.NotBefore()
+	c.Delete("nbf")
+	return old
+}
 
 // Subject retrieves the reserved "sub" claim.
 func (c Claims) Subject() (string, bool) {
