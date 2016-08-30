@@ -31,6 +31,7 @@ const (
 	ErrInvalidAlgorithm
 	ErrInvalidKeyType
 	ErrInvalidSignature
+	ErrCannotReadPEM
 	ErrCannotDecodePEM
 	ErrCannotParseECDSA
 )
@@ -47,6 +48,7 @@ var errorMessages = errors.Messages{
 	ErrInvalidAlgorithm:  "signature algorithm %q is invalid",
 	ErrInvalidKeyType:    "key type %#v is invalid",
 	ErrInvalidSignature:  "token signature is invalid",
+	ErrCannotReadPEM:     "cannot read the PEM",
 	ErrCannotDecodePEM:   "cannot decode the PEM",
 	ErrCannotParseECDSA:  "cannot parse the ECDSA %s",
 }

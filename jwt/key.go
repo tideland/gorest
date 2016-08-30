@@ -16,38 +16,51 @@ import (
 	"crypto/x509"
 	// "crypto/rsa"
 	"encoding/pem"
+	"io"
+	"io/ioutil"
 
 	"github.com/tideland/golib/errors"
 )
 
 //--------------------
-// ECDSA
+// KEY
 //--------------------
 
-// PEMToECPrivateKey converts a PEM formatted ECDSA private
-// key into its Go representation.
-func PEMToECPrivateKey(key []byte) (*ecdsa.PrivateKey, error) {
+// Key is the used key to sign a token. The real implementation
+// controls signing and verification.
+
+type Key interface{}
+
+// ReadECprivateKey reads a PEM formated ECDSA private key
+// from the passed reader.
+func ReadECPrivateKey(r io.Reader) (Key, error) {
+	pemkey, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, errors.New(ErrCannotReadPEM, errorMessages)
+	}
 	var block *pem.Block
-	if block, _ = pem.Decode(key); block == nil {
+	if block, _ = pem.Decode(pemkey); block == nil {
 		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
 	}
 	var parsed *ecdsa.PrivateKey
-	var err error
 	if parsed, err = x509.ParseECPrivateKey(block.Bytes); err != nil {
 		return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages)
 	}
 	return parsed, nil
 }
 
-// PEMToECPublicKey converts a PEM formatted ECDSA public
-// key into its Go representation.
-func PEMToECPublicKey(key []byte) (*ecdsa.PublicKey, error) {
+// ReadECPublicKey reads a PEM formatted ECDSA public key
+// from the passed reader.
+func ReadECPublicKey(r io.Reader) (Key, error) {
+	pemkey, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, errors.New(ErrCannotReadPEM, errorMessages)
+	}
 	var block *pem.Block
-	if block, _ = pem.Decode(key); block == nil {
+	if block, _ = pem.Decode(pemkey); block == nil {
 		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
 	}
 	var parsed interface{}
-	var err error
 	parsed, err = x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		certificate, err := x509.ParseCertificate(block.Bytes)

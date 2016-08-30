@@ -44,8 +44,27 @@ func init() {
 type Signature []byte
 
 //--------------------
-// KEY
+// ALGORITHM
 //--------------------
+
+// Algorithm describes the algorithm used to sign a token.
+type Algorithm string
+
+// Definition of the supported algorithms.
+const (
+	ES256 Algorithm = "ES256"
+	ES384 Algorithm = "ES384"
+	ES512 Algorithm = "ES512"
+	HS256 Algorithm = "HS256"
+	HS384 Algorithm = "HS384"
+	HS512 Algorithm = "HS512"
+	PS256 Algorithm = "PS256"
+	PS384 Algorithm = "PS384"
+	PS512 Algorithm = "PS512"
+	RS256 Algorithm = "RS256"
+	RS384 Algorithm = "RS384"
+	RS512 Algorithm = "RS512"
+)
 
 // ecPoint is needed to marshal R and S of the ECDSA algorithms.
 type ecPoint struct {
@@ -53,11 +72,44 @@ type ecPoint struct {
 	S *big.Int
 }
 
-// Key is the used key to sign a token.
-type Key interface{}
+// Sign creates the signature for the data based on the
+// algorithm and the key.
+func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
+	switch a {
+	case ES256, HS256, PS256, RS256:
+		return a.sign(data, key, crypto.SHA256)
+	case ES384, HS384, PS384, RS384:
+		return a.sign(data, key, crypto.SHA384)
+	case ES512, HS512, PS512, RS512:
+		return a.sign(data, key, crypto.SHA512)
+	default:
+		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, a)
+	}
+}
+
+// Verify checks if the signature is correct for the data when using
+// the passed key.
+func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
+	switch a {
+	case ES256, HS256, PS256, RS256:
+		return a.verify(data, sig, key, crypto.SHA256)
+	case ES384, HS384, PS384, RS384:
+		return a.verify(data, sig, key, crypto.SHA384)
+	case ES512, HS512, PS512, RS512:
+		return a.verify(data, sig, key, crypto.SHA512)
+	default:
+		return errors.New(ErrInvalidAlgorithm, errorMessages, a)
+	}
+}
+
+// isRSAPSS returns true when the algorithm is one of
+// the RSAPSS algorithms.
+func (a Algorithm) isRSAPSS() bool {
+	return a[0] == 'P'
+}
 
 // sign signs the passed data based on the key and the passed hash.
-func sign(data []byte, k Key, h crypto.Hash, isRSAPSS bool) (Signature, error) {
+func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 	hashSum := func() []byte {
 		hasher := h.New()
 		hasher.Write(data)
@@ -83,7 +135,7 @@ func sign(data []byte, k Key, h crypto.Hash, isRSAPSS bool) (Signature, error) {
 		return Signature(sig), nil
 	case *rsa.PrivateKey:
 		// RSA and RSAPSS algorithms.
-		if isRSAPSS {
+		if a.isRSAPSS() {
 			// RSAPSS.
 			options := &rsa.PSSOptions{
 				SaltLength: rsa.PSSSaltLengthAuto,
@@ -110,7 +162,7 @@ func sign(data []byte, k Key, h crypto.Hash, isRSAPSS bool) (Signature, error) {
 
 // verify checks if the signature is correct for the passed data
 // based on the key and the passed hash.
-func verify(data []byte, sig Signature, k Key, h crypto.Hash, isRSAPSS bool) error {
+func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) error {
 	hashSum := func() []byte {
 		hasher := h.New()
 		hasher.Write(data)
@@ -129,7 +181,7 @@ func verify(data []byte, sig Signature, k Key, h crypto.Hash, isRSAPSS bool) err
 		return nil
 	case []byte:
 		// HMAC algorithms.
-		expectedSig, err := sign(data, k, h, isRSAPSS)
+		expectedSig, err := a.sign(data, k, h)
 		if err != nil {
 			return errors.Annotate(err, ErrCannotVerify, errorMessages)
 		}
@@ -139,7 +191,7 @@ func verify(data []byte, sig Signature, k Key, h crypto.Hash, isRSAPSS bool) err
 		return nil
 	case *rsa.PublicKey:
 		// RSA and RSAPSS algorithms.
-		if isRSAPSS {
+		if a.isRSAPSS() {
 			// RSAPSS.
 			options := &rsa.PSSOptions{
 				SaltLength: rsa.PSSSaltLengthAuto,
@@ -159,64 +211,6 @@ func verify(data []byte, sig Signature, k Key, h crypto.Hash, isRSAPSS bool) err
 		// No valid key type.
 		return errors.New(ErrInvalidKeyType, errorMessages, k)
 	}
-}
-
-//--------------------
-// ALGORITHM
-//--------------------
-
-// Algorithm describes the algorithm used to sign a token.
-type Algorithm string
-
-const (
-	ES256 Algorithm = "ES256"
-	ES384 Algorithm = "ES384"
-	ES512 Algorithm = "ES512"
-	HS256 Algorithm = "HS256"
-	HS384 Algorithm = "HS384"
-	HS512 Algorithm = "HS512"
-	PS256 Algorithm = "PS256"
-	PS384 Algorithm = "PS384"
-	PS512 Algorithm = "PS512"
-	RS256 Algorithm = "RS256"
-	RS384 Algorithm = "RS384"
-	RS512 Algorithm = "RS512"
-)
-
-// Sign creates the signature for the data based on the
-// algorithm and the key.
-func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
-	switch a {
-	case ES256, HS256, PS256, RS256:
-		return sign(data, key, crypto.SHA256, a.isRSAPSS())
-	case ES384, HS384, PS384, RS384:
-		return sign(data, key, crypto.SHA384, a.isRSAPSS())
-	case ES512, HS512, PS512, RS512:
-		return sign(data, key, crypto.SHA512, a.isRSAPSS())
-	default:
-		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, a)
-	}
-}
-
-// Verify checks if the signature is correct for the data when using
-// the passed key.
-func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
-	switch a {
-	case ES256, HS256, PS256, RS256:
-		return verify(data, sig, key, crypto.SHA256, a.isRSAPSS())
-	case ES384, HS384, PS384, RS384:
-		return verify(data, sig, key, crypto.SHA384, a.isRSAPSS())
-	case ES512, HS512, PS512, RS512:
-		return verify(data, sig, key, crypto.SHA512, a.isRSAPSS())
-	default:
-		return errors.New(ErrInvalidAlgorithm, errorMessages, a)
-	}
-}
-
-// isRSAPSS returns true when the algorithm is one of
-// the RSAPSS algorithms.
-func (a Algorithm) isRSAPSS() bool {
-	return a[0] == 'P'
 }
 
 // EOF
