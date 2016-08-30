@@ -64,6 +64,7 @@ const (
 	RS256 Algorithm = "RS256"
 	RS384 Algorithm = "RS384"
 	RS512 Algorithm = "RS512"
+	NONE  Algorithm = "none"
 )
 
 // ecPoint is needed to marshal R and S of the ECDSA algorithms.
@@ -75,6 +76,9 @@ type ecPoint struct {
 // Sign creates the signature for the data based on the
 // algorithm and the key.
 func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
+	if !a.isValidCombination(key) {
+		return nil, errors.New(ErrInvalidCombination, errorMessages, a)
+	}
 	switch a {
 	case ES256, HS256, PS256, RS256:
 		return a.sign(data, key, crypto.SHA256)
@@ -82,6 +86,8 @@ func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
 		return a.sign(data, key, crypto.SHA384)
 	case ES512, HS512, PS512, RS512:
 		return a.sign(data, key, crypto.SHA512)
+	case NONE:
+		return a.sign(data, key, 0)
 	default:
 		return nil, errors.New(ErrInvalidAlgorithm, errorMessages, a)
 	}
@@ -90,6 +96,9 @@ func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
 // Verify checks if the signature is correct for the data when using
 // the passed key.
 func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
+	if !a.isValidCombination(key) {
+		return errors.New(ErrInvalidCombination, errorMessages, a)
+	}
 	switch a {
 	case ES256, HS256, PS256, RS256:
 		return a.verify(data, sig, key, crypto.SHA256)
@@ -97,9 +106,33 @@ func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
 		return a.verify(data, sig, key, crypto.SHA384)
 	case ES512, HS512, PS512, RS512:
 		return a.verify(data, sig, key, crypto.SHA512)
+	case NONE:
+		return a.verify(data, sig, key, 0)
 	default:
 		return errors.New(ErrInvalidAlgorithm, errorMessages, a)
 	}
+}
+
+// isValidCombination checks if the key type as allowed
+// for the algorithm.
+func (a Algorithm) isValidCombination(k Key) bool {
+	switch k.(type) {
+	case *ecdsa.PrivateKey:
+		// ECDSA algorithms.
+		return a == ES256 || a == ES384 || a == ES512
+	case []byte:
+		// HMAC algorithms.
+		return a == HS256 || a == HS384 || a == HS512
+		return a[0] == 'H'
+	case *rsa.PrivateKey:
+		// RSA and RSAPSS algorithms.
+		return a == PS256 || a == PS384 || a == PS512 ||
+			a == RS256 || a == RS384 || a == RS512
+	case string:
+		// None algorithm.
+		return a == NONE
+	}
+	return false
 }
 
 // isRSAPSS returns true when the algorithm is one of
@@ -154,6 +187,9 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 			}
 			return Signature(sig), nil
 		}
+	case string:
+		// None algorithm.
+		return Signature(""), nil
 	default:
 		// No valid key type.
 		return nil, errors.New(ErrInvalidKeyType, errorMessages, k)
@@ -205,6 +241,12 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 			if err := rsa.VerifyPKCS1v15(key, h, hashSum(), sig); err != nil {
 				return errors.Annotate(err, ErrInvalidSignature, errorMessages)
 			}
+		}
+		return nil
+	case string:
+		// None algorithm.
+		if len(sig) > 0 {
+			return errors.New(ErrInvalidSignature, errorMessages)
 		}
 		return nil
 	default:
