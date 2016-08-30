@@ -13,7 +13,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.0.0 beta 2016-08-27
+Version 2.0.0 beta 2016-08-30
 
 ## Packages
 
@@ -25,10 +25,15 @@ RESTful web request handling.
 
 #### Handlers
 
-Some handlers for the
+Some general purpose handlers for the library.
 
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/rest?status.svg)](https://godoc.org/github.com/tideland/gorest/rest)
+[![GoDoc](https://godoc.org/github.com/tideland/gorest/handlers?status.svg)](https://godoc.org/github.com/tideland/gorest/handlers)
 
+#### JSON Web Token
+
+JWT package for secure authentication and information exchange like claims.
+
+[![GoDoc](https://godoc.org/github.com/tideland/gorest/jwt?status.svg)](https://godoc.org/github.com/tideland/gorest/jwt)
 
 ## Contributors
 
