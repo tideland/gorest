@@ -117,14 +117,14 @@ func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
 // for the algorithm.
 func (a Algorithm) isValidCombination(k Key) bool {
 	switch k.(type) {
-	case *ecdsa.PrivateKey:
+	case *ecdsa.PrivateKey, *ecdsa.PublicKey:
 		// ECDSA algorithms.
 		return a == ES256 || a == ES384 || a == ES512
 	case []byte:
 		// HMAC algorithms.
 		return a == HS256 || a == HS384 || a == HS512
 		return a[0] == 'H'
-	case *rsa.PrivateKey:
+	case *rsa.PrivateKey, *rsa.PublicKey:
 		// RSA and RSAPSS algorithms.
 		return a == PS256 || a == PS384 || a == PS512 ||
 			a == RS256 || a == RS384 || a == RS512

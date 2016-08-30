@@ -29,7 +29,20 @@ import (
 //--------------------
 
 type JWT interface {
+	// Stringer provides the String() method.
 	fmt.Stringer
+
+	// Payload returns the payload of the token,
+	// normally claims.
+	Payload() interface{}
+
+	// Key return the key of the token only when
+	// it is a result of encoding or verification.
+	Key() (Key, error)
+
+	// Algorithm returns the algorithm of the token
+	// after encoding, decoding, or verification.
+	Algorithm() Algorithm
 }
 
 type jwtHeader struct {
@@ -119,13 +132,12 @@ func Verify(token string, payload interface{}, key Key) (JWT, error) {
 	}, nil
 }
 
-// Payload returns the payload of the token.
+// Payload implements the JWT interface.
 func (jwt *jwt) Payload() interface{} {
 	return jwt.payload
 }
 
-// Key return the key of the token only when it is a result of encoding
-// or verification.
+// Key implements the JWT interface.
 func (jwt *jwt) Key() (Key, error) {
 	if jwt.key == nil {
 		return nil, errors.New(ErrNoKey, errorMessages)
@@ -133,13 +145,12 @@ func (jwt *jwt) Key() (Key, error) {
 	return jwt.key, nil
 }
 
-// Algorithm returns the algorithm of the token after encoding,
-// decoding, or verification.
+// Algorithm implements the JWT interface.
 func (jwt *jwt) Algorithm() Algorithm {
 	return jwt.algorithm
 }
 
-// String implements the stringer interface.
+// String implements the Stringer interface.
 func (jwt *jwt) String() string {
 	return jwt.token
 }
