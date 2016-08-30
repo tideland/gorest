@@ -13,8 +13,8 @@ package jwt
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/pem"
 	"io"
 	"io/ioutil"

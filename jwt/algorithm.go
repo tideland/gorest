@@ -76,9 +76,6 @@ type ecPoint struct {
 // Sign creates the signature for the data based on the
 // algorithm and the key.
 func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
-	if !a.isValidCombination(key) {
-		return nil, errors.New(ErrInvalidCombination, errorMessages, a)
-	}
 	switch a {
 	case ES256, HS256, PS256, RS256:
 		return a.sign(data, key, crypto.SHA256)
@@ -96,9 +93,6 @@ func (a Algorithm) Sign(data []byte, key Key) (Signature, error) {
 // Verify checks if the signature is correct for the data when using
 // the passed key.
 func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
-	if !a.isValidCombination(key) {
-		return errors.New(ErrInvalidCombination, errorMessages, a)
-	}
 	switch a {
 	case ES256, HS256, PS256, RS256:
 		return a.verify(data, sig, key, crypto.SHA256)
@@ -111,28 +105,6 @@ func (a Algorithm) Verify(data []byte, sig Signature, key Key) error {
 	default:
 		return errors.New(ErrInvalidAlgorithm, errorMessages, a)
 	}
-}
-
-// isValidCombination checks if the key type as allowed
-// for the algorithm.
-func (a Algorithm) isValidCombination(k Key) bool {
-	switch k.(type) {
-	case *ecdsa.PrivateKey, *ecdsa.PublicKey:
-		// ECDSA algorithms.
-		return a == ES256 || a == ES384 || a == ES512
-	case []byte:
-		// HMAC algorithms.
-		return a == HS256 || a == HS384 || a == HS512
-		return a[0] == 'H'
-	case *rsa.PrivateKey, *rsa.PublicKey:
-		// RSA and RSAPSS algorithms.
-		return a == PS256 || a == PS384 || a == PS512 ||
-			a == RS256 || a == RS384 || a == RS512
-	case string:
-		// None algorithm.
-		return a == NONE
-	}
-	return false
 }
 
 // isRSAPSS returns true when the algorithm is one of
@@ -151,6 +123,9 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 	switch key := k.(type) {
 	case *ecdsa.PrivateKey:
 		// ECDSA algorithms.
+		if a[0] != 'E' {
+			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
+		}
 		r, s, err := ecdsa.Sign(rand.Reader, key, hashSum())
 		if err != nil {
 			return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
@@ -162,12 +137,18 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 		return Signature(sig), nil
 	case []byte:
 		// HMAC algorithms.
+		if a[0] != 'H' {
+			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
+		}
 		hasher := hmac.New(h.New, key)
 		hasher.Write(data)
 		sig := hasher.Sum(nil)
 		return Signature(sig), nil
 	case *rsa.PrivateKey:
 		// RSA and RSAPSS algorithms.
+		if a[0] != 'P' && a[0] != 'R' {
+			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
+		}
 		if a.isRSAPSS() {
 			// RSAPSS.
 			options := &rsa.PSSOptions{
@@ -189,6 +170,9 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 		}
 	case string:
 		// None algorithm.
+		if a != "none" {
+			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "none")
+		}
 		return Signature(""), nil
 	default:
 		// No valid key type.
@@ -207,6 +191,9 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 	switch key := k.(type) {
 	case *ecdsa.PublicKey:
 		// ECDSA algorithms.
+		if a[0] != 'E' {
+			return errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
+		}
 		var ecp ecPoint
 		if _, err := asn1.Unmarshal(sig, &ecp); err != nil {
 			return errors.Annotate(err, ErrCannotVerify, errorMessages)
@@ -217,6 +204,9 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 		return nil
 	case []byte:
 		// HMAC algorithms.
+		if a[0] != 'H' {
+			return errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
+		}
 		expectedSig, err := a.sign(data, k, h)
 		if err != nil {
 			return errors.Annotate(err, ErrCannotVerify, errorMessages)
@@ -227,6 +217,9 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 		return nil
 	case *rsa.PublicKey:
 		// RSA and RSAPSS algorithms.
+		if a[0] != 'P' && a[0] != 'R' {
+			return errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
+		}
 		if a.isRSAPSS() {
 			// RSAPSS.
 			options := &rsa.PSSOptions{
@@ -245,6 +238,9 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 		return nil
 	case string:
 		// None algorithm.
+		if a != "none" {
+			return errors.New(ErrInvalidCombination, errorMessages, a, "none")
+		}
 		if len(sig) > 0 {
 			return errors.New(ErrInvalidSignature, errorMessages)
 		}

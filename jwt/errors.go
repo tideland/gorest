@@ -49,7 +49,7 @@ var errorMessages = errors.Messages{
 	ErrJSONMarshalling:    "error marshalling to JSON",
 	ErrJSONUnmarshalling:  "error unmarshilling from JSON",
 	ErrInvalidTokenPart:   "part of the token contains invalid data",
-	ErrInvalidCombination: "invalid combination of algorithm %q and key type",
+	ErrInvalidCombination: "invalid combination of algorithm %q and key type %q",
 	ErrInvalidAlgorithm:   "signature algorithm %q is invalid",
 	ErrInvalidKeyType:     "key type %#v is invalid",
 	ErrInvalidSignature:   "token signature is invalid",
