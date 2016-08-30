@@ -34,6 +34,9 @@ const (
 	ErrCannotReadPEM
 	ErrCannotDecodePEM
 	ErrCannotParseECDSA
+	ErrNoECDSAKey
+	ErrCannotParseRSA
+	ErrNoRSAKey
 )
 
 var errorMessages = errors.Messages{
@@ -50,7 +53,10 @@ var errorMessages = errors.Messages{
 	ErrInvalidSignature:  "token signature is invalid",
 	ErrCannotReadPEM:     "cannot read the PEM",
 	ErrCannotDecodePEM:   "cannot decode the PEM",
-	ErrCannotParseECDSA:  "cannot parse the ECDSA %s",
+	ErrCannotParseECDSA:  "cannot parse the ECDSA",
+	ErrNoECDSAKey:        "passed key is no ECDSA key",
+	ErrCannotParseRSA:    "cannot parse the RSA",
+	ErrNoRSAKey:          "passed key is no RSA key",
 }
 
 // EOF

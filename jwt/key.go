@@ -14,7 +14,7 @@ package jwt
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
-	// "crypto/rsa"
+	"crypto/rsa"
 	"encoding/pem"
 	"io"
 	"io/ioutil"
@@ -31,7 +31,7 @@ import (
 
 type Key interface{}
 
-// ReadECprivateKey reads a PEM formated ECDSA private key
+// ReadECPrivateKey reads a PEM formated ECDSA private key
 // from the passed reader.
 func ReadECPrivateKey(r io.Reader) (Key, error) {
 	pemkey, err := ioutil.ReadAll(r)
@@ -49,7 +49,7 @@ func ReadECPrivateKey(r io.Reader) (Key, error) {
 	return parsed, nil
 }
 
-// ReadECPublicKey reads a PEM formatted ECDSA public key
+// ReadECPublicKey reads a PEM encoded ECDSA public key
 // from the passed reader.
 func ReadECPublicKey(r io.Reader) (Key, error) {
 	pemkey, err := ioutil.ReadAll(r)
@@ -65,13 +65,66 @@ func ReadECPublicKey(r io.Reader) (Key, error) {
 	if err != nil {
 		certificate, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages, "certificate")
+			return nil, errors.Annotate(err, ErrCannotParseECDSA, errorMessages)
 		}
 		parsed = certificate.PublicKey
 	}
 	publicKey, ok := parsed.(*ecdsa.PublicKey)
 	if !ok {
-		return nil, errors.New(ErrCannotParseECDSA, errorMessages, "public key")
+		return nil, errors.New(ErrNoECDSAKey, errorMessages)
+	}
+	return publicKey, nil
+}
+
+// ReadRSAPrivateKey reads a PEM encoded PKCS1 or PKCS8 private key
+// from the passed reader.
+func ReadRSAPrivateKey(r io.Reader) (Key, error) {
+	pemkey, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, errors.New(ErrCannotReadPEM, errorMessages)
+	}
+	var block *pem.Block
+	if block, _ = pem.Decode(pemkey); block == nil {
+		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
+	}
+	var parsed interface{}
+	parsed, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		parsed, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotParseRSA, errorMessages)
+		}
+	}
+	privateKey, ok := parsed.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New(ErrNoRSAKey, errorMessages)
+	}
+	return privateKey, nil
+}
+
+// ReadRSAPublicKey reads a PEM encoded PKCS1 or PKCS8 public key
+// from the passed reader.
+func ReadRSAPublicKey(r io.Reader) (Key, error) {
+	pemkey, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, errors.New(ErrCannotReadPEM, errorMessages)
+	}
+	var block *pem.Block
+	if block, _ = pem.Decode(pemkey); block == nil {
+		return nil, errors.New(ErrCannotDecodePEM, errorMessages)
+	}
+	var parsed interface{}
+	parsed, err = x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		certificate, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotParseRSA, errorMessages)
+		}
+		parsed = certificate.PublicKey
+	}
+	publicKey, ok := parsed.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New(ErrNoRSAKey, errorMessages)
 	}
 	return publicKey, nil
 }
