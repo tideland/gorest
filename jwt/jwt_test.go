@@ -73,17 +73,17 @@ func TestESAlgorithms(t *testing.T) {
 // JWT signature.
 func TestHSAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
-	testHSKey := []byte("secret")
+	key := []byte("secret")
 	for _, test := range hsTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
-		jwtEncode, err := jwt.Encode(payload, testHSKey, test)
+		jwtEncode, err := jwt.Encode(payload, key, test)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
 		var verifyPayload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, testHSKey)
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, key)
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
@@ -163,6 +163,53 @@ func TestNoneAlgorithm(t *testing.T) {
 	assert.Equal(payload.Sub, verifyPayload.Sub)
 	assert.Equal(payload.Name, verifyPayload.Name)
 	assert.Equal(payload.Admin, verifyPayload.Admin)
+}
+
+// TestNotMatchingAlgorithm
+func TestNotMatchingAlgorithm(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	esPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	esPublicKey := esPrivateKey.Public()
+	assert.Nil(err)
+	hsKey := []byte("secret")
+	rsPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	rsPublicKey := rsPrivateKey.Public()
+	assert.Nil(err)
+	noneKey := ""
+	errorMatch := ".* combination of algorithm .* and key type .*"
+	tests := []struct {
+		description string
+		algorithm   jwt.Algorithm
+		key         jwt.Key
+		encodeKeys  []jwt.Key
+		verifyKeys  []jwt.Key
+	}{
+		{"ECDSA", jwt.ES512, esPrivateKey,
+			[]jwt.Key{hsKey, rsPrivateKey, noneKey}, []jwt.Key{hsKey, rsPublicKey, noneKey}},
+		{"HMAC", jwt.HS512, hsKey,
+			[]jwt.Key{esPrivateKey, rsPrivateKey, noneKey}, []jwt.Key{esPublicKey, rsPublicKey, noneKey}},
+		{"RSA", jwt.RS512, rsPrivateKey,
+			[]jwt.Key{esPrivateKey, hsKey, noneKey}, []jwt.Key{esPublicKey, hsKey, noneKey}},
+		{"RSAPSS", jwt.PS512, rsPrivateKey,
+			[]jwt.Key{esPrivateKey, hsKey, noneKey}, []jwt.Key{esPublicKey, hsKey, noneKey}},
+		{"none", jwt.NONE, noneKey,
+			[]jwt.Key{esPrivateKey, hsKey, rsPrivateKey}, []jwt.Key{esPublicKey, hsKey, rsPublicKey}},
+	}
+	// Run the tests.
+	for _, test := range tests {
+		assert.Logf("testing %q algorithm key type mismatch", test.description)
+		for _, key := range test.encodeKeys {
+			_, err = jwt.Encode(payload, key, test.algorithm)
+			assert.ErrorMatch(err, errorMatch)
+		}
+		jwtEncode, err := jwt.Encode(payload, test.key, test.algorithm)
+		assert.Nil(err)
+		for _, key := range test.verifyKeys {
+			var verifyPayload testPayload
+			_, err = jwt.Verify(jwtEncode.String(), &verifyPayload, key)
+			assert.ErrorMatch(err, errorMatch)
+		}
+	}
 }
 
 // TestESTools tests the tools for the reading of PEM encoded

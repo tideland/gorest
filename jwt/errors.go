@@ -51,7 +51,7 @@ var errorMessages = errors.Messages{
 	ErrInvalidTokenPart:   "part of the token contains invalid data",
 	ErrInvalidCombination: "invalid combination of algorithm %q and key type %q",
 	ErrInvalidAlgorithm:   "signature algorithm %q is invalid",
-	ErrInvalidKeyType:     "key type %#v is invalid",
+	ErrInvalidKeyType:     "key type %T is invalid",
 	ErrInvalidSignature:   "token signature is invalid",
 	ErrCannotReadPEM:      "cannot read the PEM",
 	ErrCannotDecodePEM:    "cannot decode the PEM",
