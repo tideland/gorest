@@ -12,6 +12,8 @@ package jwt_test
 //--------------------
 
 import (
+	"testing"
+
 	"github.com/tideland/golib/audit"
 
 	"github.com/tideland/gorest/jwt"
@@ -25,6 +27,7 @@ import (
 // on claims.
 func TestClaimsBasic(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims basic functions handling")
 	// First with uninitialised claims.
 	var claims jwt.Claims
 	ok := claims.Contains("foo")
@@ -40,7 +43,7 @@ func TestClaimsBasic(t *testing.T) {
 	claims = jwt.NewClaims()
 	ok = claims.Contains("foo")
 	assert.False(ok)
-	mothing, ok = claims.Get("foo")
+	nothing, ok = claims.Get("foo")
 	assert.Nil(nothing)
 	assert.False(ok)
 	old = claims.Set("foo", "bar")
@@ -58,7 +61,25 @@ func TestClaimsBasic(t *testing.T) {
 	old = claims.Delete("foo")
 	assert.Nil(old)
 	ok = claims.Contains("foo")
-	assert.True(false)
+	assert.False(ok)
+}
+
+// TestClaimsString tests the string operations
+// on claims.
+func TestClaimsString(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims string handling")
+	claims := jwt.NewClaims()
+	nothing := claims.Set("foo", "bar")
+	assert.Nil(nothing)
+	var foo string
+	foo, ok := claims.GetString("foo")
+	assert.Equal(foo, "bar")
+	assert.True(ok)
+	claims.Set("foo", 4711)
+	foo, ok = claims.GetString("foo")
+	assert.Equal(foo, "4711")
+	assert.True(ok)
 }
 
 // EOF
