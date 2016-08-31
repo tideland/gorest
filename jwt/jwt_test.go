@@ -12,10 +12,13 @@ package jwt_test
 //--------------------
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"strings"
 	"testing"
 
@@ -70,6 +73,7 @@ func TestESAlgorithms(t *testing.T) {
 // JWT signature.
 func TestHSAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
+	testHSKey := []byte("secret")
 	for _, test := range hsTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
@@ -154,6 +158,96 @@ func TestNoneAlgorithm(t *testing.T) {
 	var verifyPayload testPayload
 	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, "")
 	assert.Nil(err)
+	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
+	assert.Equal(jwtEncode.String(), jwtVerify.String())
+	assert.Equal(payload.Sub, verifyPayload.Sub)
+	assert.Equal(payload.Name, verifyPayload.Name)
+	assert.Equal(payload.Admin, verifyPayload.Admin)
+}
+
+// TestESTools tests the tools for the reading of PEM encoded
+// ECDSA keys.
+func TestESTools(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing \"ECDSA\" tools")
+	// Generate keys and PEMs.
+	privateKeyIn, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	assert.Nil(err)
+	privateBytes, err := x509.MarshalECPrivateKey(privateKeyIn)
+	assert.Nil(err)
+	privateBlock := pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privateBytes,
+	}
+	privatePEM := pem.EncodeToMemory(&privateBlock)
+	publicBytes, err := x509.MarshalPKIXPublicKey(privateKeyIn.Public())
+	assert.Nil(err)
+	publicBlock := pem.Block{
+		Type:  "EC PUBLIC KEY",
+		Bytes: publicBytes,
+	}
+	publicPEM := pem.EncodeToMemory(&publicBlock)
+	assert.NotNil(publicPEM)
+	// Now read them.
+	buf := bytes.NewBuffer(privatePEM)
+	privateKeyOut, err := jwt.ReadECPrivateKey(buf)
+	assert.Nil(err)
+	buf = bytes.NewBuffer(publicPEM)
+	publicKeyOut, err := jwt.ReadECPublicKey(buf)
+	assert.Nil(err)
+	// And as a last step check if they are correctly usable.
+	jwtEncode, err := jwt.Encode(payload, privateKeyOut, jwt.ES512)
+	assert.Nil(err)
+	parts := strings.Split(jwtEncode.String(), ".")
+	assert.Length(parts, 3)
+	var verifyPayload testPayload
+	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, publicKeyOut)
+	assert.Nil(err)
+	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
+	assert.Equal(jwtEncode.String(), jwtVerify.String())
+	assert.Equal(payload.Sub, verifyPayload.Sub)
+	assert.Equal(payload.Name, verifyPayload.Name)
+	assert.Equal(payload.Admin, verifyPayload.Admin)
+}
+
+// TestRSTools tests the tools for the reading of PEM encoded
+// RSA keys.
+func TestRSTools(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing \"RSA\" tools")
+	// Generate keys and PEMs.
+	privateKeyIn, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.Nil(err)
+	privateBytes := x509.MarshalPKCS1PrivateKey(privateKeyIn)
+	privateBlock := pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateBytes,
+	}
+	privatePEM := pem.EncodeToMemory(&privateBlock)
+	publicBytes, err := x509.MarshalPKIXPublicKey(privateKeyIn.Public())
+	assert.Nil(err)
+	publicBlock := pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: publicBytes,
+	}
+	publicPEM := pem.EncodeToMemory(&publicBlock)
+	assert.NotNil(publicPEM)
+	// Now read them.
+	buf := bytes.NewBuffer(privatePEM)
+	privateKeyOut, err := jwt.ReadRSAPrivateKey(buf)
+	assert.Nil(err)
+	buf = bytes.NewBuffer(publicPEM)
+	publicKeyOut, err := jwt.ReadRSAPublicKey(buf)
+	assert.Nil(err)
+	// And as a last step check if they are correctly usable.
+	jwtEncode, err := jwt.Encode(payload, privateKeyOut, jwt.RS512)
+	assert.Nil(err)
+	parts := strings.Split(jwtEncode.String(), ".")
+	assert.Length(parts, 3)
+	var verifyPayload testPayload
+	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, publicKeyOut)
+	assert.Nil(err)
+	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 	assert.Equal(jwtEncode.String(), jwtVerify.String())
 	assert.Equal(payload.Sub, verifyPayload.Sub)
 	assert.Equal(payload.Name, verifyPayload.Name)
@@ -171,23 +265,5 @@ type testPayload struct {
 	Name  string `json:"name"`
 	Admin bool   `json:"admin"`
 }
-
-// Definition of the test keys.
-var (
-	testESPrivateKeyReader = strings.NewReader(`
------BEGIN EC PRIVATE KEY-----
-MHcCAQEEICU9DCkojQVmgKQHH+HowwL+SV4Bnv/uDYecQkJcnQGkoAoGCCqGSM49
-AwEHoUQDQgAEV//4hj8zUq5SzNMYpEiedOtC9HPOTE3QFnWK47atLZfhEpfdBDVr
-BeassPbMeRq0UdSB3i9rtI3lkmuNx2jErg==
------END EC PRIVATE KEY-----`)
-
-	testESPublicKeyReader = strings.NewReader(`
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEV//4hj8zUq5SzNMYpEiedOtC9HPO
-TE3QFnWK47atLZfhEpfdBDVrBeassPbMeRq0UdSB3i9rtI3lkmuNx2jErg==
------END PUBLIC KEY-----`)
-
-	testHSKey = []byte("secret")
-)
 
 // EOF
