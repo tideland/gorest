@@ -24,6 +24,11 @@ import (
 // also provides getters and setters for the reserved claims.
 type Claims map[string]interface{}
 
+// NewClaims returns an empty set of claims.
+func NewClaims() Claims {
+	return Claims{}
+}
+
 // Get retrieves a value from the claims.
 func (c Claims) Get(key string) (interface{}, bool) {
 	if c == nil {
@@ -44,6 +49,36 @@ func (c Claims) GetString(key string) (string, bool) {
 		return str, true
 	}
 	return fmt.Sprintf("%v", value), true
+}
+
+// GetInt retrieves an integer value.
+func (c Claims) GetInt(key string) (int, bool) {
+	value, ok := c.Get(key)
+	if !ok {
+		return 0, false
+	}
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case float64:
+		return int(v), true
+	}
+	return 0, false
+}
+
+// GetFloat64 retrieves a float value.
+func (c Claims) GetFloat64(key string) (float64, bool) {
+	value, ok := c.Get(key)
+	if !ok {
+		return 0, false
+	}
+	switch v := value.(type) {
+	case int:
+		return float64(v), true
+	case float64:
+		return v, true
+	}
+	return 0, false
 }
 
 // GetTime retrieves a time value. Int, int32, int64,
