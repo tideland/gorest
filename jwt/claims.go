@@ -112,6 +112,9 @@ func (c Claims) GetTime(key string) (time.Time, bool) {
 // Set sets a value in the claims. It returns a potential
 // old value.
 func (c Claims) Set(key string, value interface{}) interface{} {
+	if c == nil {
+		return nil
+	}
 	old, _ := c.Get(key)
 	c[key] = value
 	return old
