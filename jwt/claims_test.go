@@ -12,6 +12,7 @@ package jwt_test
 //--------------------
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/tideland/golib/audit"
@@ -22,6 +23,39 @@ import (
 //--------------------
 // TESTS
 //--------------------
+
+// TestClaimsMarshalling tests the marshalling of Claims
+// to JSON and back.
+func TestClaimsMarshalling(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims marshalling")
+	// First with uninitialised or empty claims.
+	var claims jwt.Claims
+	jsonValue, err := json.Marshal(claims)
+	assert.Nil(jsonValue)
+	assert.Nil(err)
+	claims = jwt.NewClaims()
+	jsonValue, err = json.Marshal(claims)
+	assert.Nil(jsonValue)
+	assert.Nil(err)
+	// Now fill it.
+	claims.Set("foo", "yadda")
+	claims.Set("bar", 12345)
+	assert.Length(claims, 2)
+	jsonValue, err = json.Marshal(claims)
+	assert.NotNil(jsonValue)
+	assert.Nil(err)
+	var unmarshalled jwt.Claims
+	err = json.Unmarshal(jsonValue, &unmarshalled)
+	assert.Nil(err)
+	assert.Length(unmarshalled, 2)
+	foo, ok := claims.Get("foo")
+	assert.Equal(foo, "yadda")
+	assert.True(ok)
+	bar, ok := claims.GetInt("bar")
+	assert.Equal(bar, 12345)
+	assert.True(ok)
+}
 
 // TestClaimsBasic tests the low level operations
 // on claims.

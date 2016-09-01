@@ -47,7 +47,7 @@ var errorMessages = errors.Messages{
 	ErrCannotVerify:       "cannot verify the %s",
 	ErrNoKey:              "no key available, only after encoding or verifying",
 	ErrJSONMarshalling:    "error marshalling to JSON",
-	ErrJSONUnmarshalling:  "error unmarshilling from JSON",
+	ErrJSONUnmarshalling:  "error unmarshalling from JSON",
 	ErrInvalidTokenPart:   "part of the token contains invalid data",
 	ErrInvalidCombination: "invalid combination of algorithm %q and key type %q",
 	ErrInvalidAlgorithm:   "signature algorithm %q is invalid",

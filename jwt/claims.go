@@ -29,6 +29,14 @@ func NewClaims() Claims {
 	return Claims{}
 }
 
+// Len returns the number of entries in the claims.
+func (c Claims) Len() int {
+	if c == nil {
+		return 0
+	}
+	return len(c)
+}
+
 // Get retrieves a value from the claims.
 func (c Claims) Get(key string) (interface{}, bool) {
 	if c == nil {
@@ -318,6 +326,32 @@ func (c Claims) DeleteSubject() string {
 	old, _ := c.Subject()
 	c.Delete("sub")
 	return old
+}
+
+// MarshalJSON implements the json.Marshaller interface
+// even for nil or empty claims.
+func (c Claims) MarshalJSON() ([]byte, error) {
+	if c.Len() == 0 {
+		return nil, nil
+	}
+	b, err := json.Marshal(map[string]interface{}(c))
+	if err != nil {
+		return nil, errors.Annotate(err, ErrJSONMarshalling, errorMessages)
+	}
+	return b, nil
+}
+
+// MarshalJSON implements the json.Marshaller interface.
+func (c Claims) UnmarshalJSON(b []byte) error {
+	if b == nil {
+		return nil
+	}
+	raw := map[string]interface{}(*c)
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return errors.Annotate(err, ErrJSONUnmarshalling, errorMessages)
+	}
+	*c = Claims(raw)
+	return nil
 }
 
 // EOF
