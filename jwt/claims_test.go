@@ -32,11 +32,11 @@ func TestClaimsMarshalling(t *testing.T) {
 	// First with uninitialised or empty claims.
 	var claims jwt.Claims
 	jsonValue, err := json.Marshal(claims)
-	assert.Nil(jsonValue)
+	assert.Equal(string(jsonValue), "{}")
 	assert.Nil(err)
 	claims = jwt.NewClaims()
 	jsonValue, err = json.Marshal(claims)
-	assert.Nil(jsonValue)
+	assert.Equal(string(jsonValue), "{}")
 	assert.Nil(err)
 	// Now fill it.
 	claims.Set("foo", "yadda")

@@ -12,8 +12,11 @@ package jwt
 //--------------------
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/tideland/golib/errors"
 )
 
 //--------------------
@@ -332,7 +335,7 @@ func (c Claims) DeleteSubject() string {
 // even for nil or empty claims.
 func (c Claims) MarshalJSON() ([]byte, error) {
 	if c.Len() == 0 {
-		return nil, nil
+		return []byte("{}"), nil
 	}
 	b, err := json.Marshal(map[string]interface{}(c))
 	if err != nil {
@@ -342,7 +345,7 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalJSON implements the json.Marshaller interface.
-func (c Claims) UnmarshalJSON(b []byte) error {
+func (c *Claims) UnmarshalJSON(b []byte) error {
 	if b == nil {
 		return nil
 	}
