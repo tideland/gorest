@@ -116,4 +116,28 @@ func TestClaimsString(t *testing.T) {
 	assert.True(ok)
 }
 
+// TestClaimsInt tests the int operations
+// on claims.
+func TestClaimsInt(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims int handling")
+	claims := jwt.NewClaims()
+	claims.Set("foo", 4711)
+	claims.Set("bar", "4712")
+	claims.Set("baz", "4713.0")
+	claims.Set("yadda", "nope")
+	foo, ok := claims.GetInt("foo")
+	assert.Equal(foo, 4711)
+	assert.True(ok)
+	bar, ok := claims.GetInt("bar")
+	assert.Equal(bar, 4712)
+	assert.True(ok)
+	baz, ok := claims.GetInt("baz")
+	assert.Equal(baz, 4713)
+	assert.True(ok)
+	yadda, ok := claims.GetInt("yadda")
+	assert.Equal(yadda, 0)
+	assert.False(ok)
+}
+
 // EOF

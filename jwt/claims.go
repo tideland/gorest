@@ -14,6 +14,7 @@ package jwt
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/tideland/golib/errors"
@@ -73,6 +74,10 @@ func (c Claims) GetInt(key string) (int, bool) {
 		return v, true
 	case float64:
 		return int(v), true
+	case string:
+		if i, err := strconv.Atoi(v); err == nil {
+			return i, true
+		}
 	}
 	return 0, false
 }
