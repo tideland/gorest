@@ -47,7 +47,7 @@ import (
 
 // PackageVersion returns the version of the version package.
 func PackageVersion() version.Version {
-	return version.New(2, 0, 0, "beta", "2016-08-23")
+	return version.New(2, 0, 0, "beta", "2016-09-02")
 }
 
 // EOF

@@ -301,6 +301,31 @@ func TestRSTools(t *testing.T) {
 	assert.Equal(payload.Admin, verifyPayload.Admin)
 }
 
+// TestDecode tests the decoding without verifying the signature.
+func TestDecode(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.Nil(err)
+	assert.Logf("testing decoding without verifying")
+	// Encode.
+	jwtEncode, err := jwt.Encode(payload, privateKey, jwt.RS512)
+	assert.Nil(err)
+	parts := strings.Split(jwtEncode.String(), ".")
+	assert.Length(parts, 3)
+	// Decode.
+	var decodePayload testPayload
+	jwtDecode, err := jwt.Decode(jwtEncode.String(), &decodePayload)
+	assert.Nil(err)
+	assert.Equal(jwtEncode.Algorithm(), jwtDecode.Algorithm())
+	key, err := jwtDecode.Key()
+	assert.Nil(key)
+	assert.ErrorMatches(err, "no key available, only after encoding or verifying")
+	assert.Equal(jwtEncode.String(), jwtDecode.String())
+	assert.Equal(payload.Sub, decodePayload.Sub)
+	assert.Equal(payload.Name, decodePayload.Name)
+	assert.Equal(payload.Admin, decodePayload.Admin)
+}
+
 //--------------------
 // HELPERS
 //--------------------
