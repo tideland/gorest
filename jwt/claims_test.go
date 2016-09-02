@@ -124,7 +124,7 @@ func TestClaimsInt(t *testing.T) {
 	claims := jwt.NewClaims()
 	claims.Set("foo", 4711)
 	claims.Set("bar", "4712")
-	claims.Set("baz", "4713.0")
+	claims.Set("baz", 4713.0)
 	claims.Set("yadda", "nope")
 	foo, ok := claims.GetInt("foo")
 	assert.Equal(foo, 4711)

@@ -319,7 +319,7 @@ func TestDecode(t *testing.T) {
 	assert.Equal(jwtEncode.Algorithm(), jwtDecode.Algorithm())
 	key, err := jwtDecode.Key()
 	assert.Nil(key)
-	assert.ErrorMatches(err, "no key available, only after encoding or verifying")
+	assert.ErrorMatch(err, ".*no key available, only after encoding or verifying.*")
 	assert.Equal(jwtEncode.String(), jwtDecode.String())
 	assert.Equal(payload.Sub, decodePayload.Sub)
 	assert.Equal(payload.Name, decodePayload.Name)

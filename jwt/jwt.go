@@ -101,6 +101,7 @@ func Decode(token string, payload interface{}) (JWT, error) {
 	return &jwt{
 		payload:   payload,
 		algorithm: Algorithm(header.Algorithm),
+		token:     token,
 	}, nil
 }
 
