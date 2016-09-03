@@ -75,7 +75,7 @@ func (c Claims) GetInt(key string) (int, bool) {
 	case float64:
 		return int(v), true
 	case string:
-		if i, err := strconv.ParseInt(v, 64); err == nil {
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return int(i), true
 		}
 	}
@@ -96,7 +96,7 @@ func (c Claims) GetFloat64(key string) (float64, bool) {
 	case string:
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			return f, true
-		}		
+		}
 	}
 	return 0.0, false
 }

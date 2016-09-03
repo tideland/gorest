@@ -14,6 +14,7 @@ package jwt_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/tideland/golib/audit"
 
@@ -161,6 +162,31 @@ func TestClaimsFloat64(t *testing.T) {
 	assert.True(ok)
 	yadda, ok := claims.GetFloat64("yadda")
 	assert.Equal(yadda, 0.0)
+	assert.False(ok)
+}
+
+// TestClaimsTime tests the time operations
+// on claims.
+func TestClaimsTime(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims time handling")
+	goLaunch := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	claims := jwt.NewClaims()
+	claims.SetTime("foo", goLaunch)
+	claims.Set("bar", goLaunch.Unix())
+	claims.Set("baz", goLaunch.Format(time.RFC3339))
+	claims.Set("yadda", "nope")
+	foo, ok := claims.GetTime("foo")
+	assert.Equal(foo.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	bar, ok := claims.GetTime("bar")
+	assert.Equal(bar.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	baz, ok := claims.GetTime("baz")
+	assert.Equal(baz.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	yadda, ok := claims.GetTime("yadda")
+	assert.Equal(yadda, time.Time{})
 	assert.False(ok)
 }
 
