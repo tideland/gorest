@@ -75,8 +75,8 @@ func (c Claims) GetInt(key string) (int, bool) {
 	case float64:
 		return int(v), true
 	case string:
-		if i, err := strconv.Atoi(v); err == nil {
-			return i, true
+		if i, err := strconv.ParseInt(v, 64); err == nil {
+			return int(i), true
 		}
 	}
 	return 0, false
@@ -93,8 +93,12 @@ func (c Claims) GetFloat64(key string) (float64, bool) {
 		return float64(v), true
 	case float64:
 		return v, true
+	case string:
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f, true
+		}		
 	}
-	return 0, false
+	return 0.0, false
 }
 
 // GetTime retrieves a time value. Int, int32, int64,

@@ -140,4 +140,28 @@ func TestClaimsInt(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsFloat64 tests the float64 operations
+// on claims.
+func TestClaimsFloat64(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims float64 handling")
+	claims := jwt.NewClaims()
+	claims.Set("foo", 4711)
+	claims.Set("bar", "4712")
+	claims.Set("baz", 4713.0)
+	claims.Set("yadda", "nope")
+	foo, ok := claims.GetFloat64("foo")
+	assert.Equal(foo, 4711.0)
+	assert.True(ok)
+	bar, ok := claims.GetFloat64("bar")
+	assert.Equal(bar, 4712.0)
+	assert.True(ok)
+	baz, ok := claims.GetFloat64("baz")
+	assert.Equal(baz, 4713.0)
+	assert.True(ok)
+	yadda, ok := claims.GetFloat64("yadda")
+	assert.Equal(yadda, 0.0)
+	assert.False(ok)
+}
+
 // EOF
