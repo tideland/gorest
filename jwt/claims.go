@@ -340,6 +340,25 @@ func (c Claims) DeleteSubject() string {
 	return old
 }
 
+// ValidateTimes checks validity not before and expiration
+// against current time if they are set.
+func (c Claims) ValidateTimes() error {
+	now := time.Now()
+	if nbf, ok := c.NotBefore(); ok {
+		nbfLeeway := nbf.Add(-time.Minute)
+		if now.Before(nbfLeeway) {
+			return errors.New(ErrNotYetValid, errorMessages)
+		}
+	}
+	if exp, ok := c.Expiration(); ok {
+		expLeeway := exp.Add(time.Minute)
+		if now.After(expLeeway) {
+			return errors.New(ErrExpired, errorMessages)
+		}
+	}
+	return nil
+}
+
 // MarshalJSON implements the json.Marshaller interface
 // even for nil or empty claims.
 func (c Claims) MarshalJSON() ([]byte, error) {

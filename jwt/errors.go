@@ -38,6 +38,8 @@ const (
 	ErrNoECDSAKey
 	ErrCannotParseRSA
 	ErrNoRSAKey
+	ErrNotYetValid
+	ErrExpired
 )
 
 var errorMessages = errors.Messages{
@@ -59,6 +61,8 @@ var errorMessages = errors.Messages{
 	ErrNoECDSAKey:         "passed key is no ECDSA key",
 	ErrCannotParseRSA:     "cannot parse the RSA",
 	ErrNoRSAKey:           "passed key is no RSA key",
+	ErrNotYetValid:        "token is not yet valid",
+	ErrExpired:            "token is expired",
 }
 
 // EOF

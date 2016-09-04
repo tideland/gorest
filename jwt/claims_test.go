@@ -190,4 +190,35 @@ func TestClaimsTime(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsValidity checks the validation of the not before
+// and the expiring time.
+func TestClaimsValidity(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims validity")
+	claims := jwt.NewClaims()
+	// Valid claims.
+	now := time.Now()
+	nbf := now.Add(-time.Hour)
+	exp := now.Add(time.Hour)
+	err := claims.ValidateTimes()
+	assert.Nil(err)
+	claims.SetNotBefore(nbf)
+	err = claims.ValidateTimes()
+	assert.Nil(err)
+	claims.SetExpiration(exp)
+	err = claims.ValidateTimes()
+	assert.Nil(err)
+	// Invalid claims.
+	nbf = now.Add(time.Hour)
+	exp = now.Add(-time.Hour)
+	claims.SetNotBefore(nbf)
+	claims.DeleteExpiration()
+	err = claims.ValidateTimes()
+	assert.ErrorMatch(err, ".*token is not yet valid.*")
+	claims.DeleteNotBefore()
+	claims.SetExpiration(exp)
+	err = claims.ValidateTimes()
+	assert.ErrorMatch(err, ".*token is expired.*")
+}
+
 // EOF
