@@ -219,6 +219,12 @@ func TestClaimsValidity(t *testing.T) {
 	claims.SetExpiration(exp)
 	err = claims.ValidateTimes()
 	assert.ErrorMatch(err, ".*token is expired.*")
+	// Now both are invalid, so error check is only on not
+	// nil due to possible changing internal verification
+	// order.
+	claims.SetNotBefore(nbf)
+	err = claims.ValidateTimes()
+	assert.NotNil(err)
 }
 
 // EOF
