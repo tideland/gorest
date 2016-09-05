@@ -195,36 +195,45 @@ func TestClaimsTime(t *testing.T) {
 func TestClaimsValidity(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing claims validity")
-	claims := jwt.NewClaims()
-	// Valid claims.
+	// Fresh claims.
 	now := time.Now()
+	leeway := time.Minute
+	claims := jwt.NewClaims()
+	valid := claims.IsAlreadyValid(leeway)
+	assert.True(valid)
+	valid = claims.IsStillValid(leeway)
+	assert.True(valid)
+	valid = claims.IsValid(leeway)
+	assert.True(valid)
+	// Set times.
 	nbf := now.Add(-time.Hour)
 	exp := now.Add(time.Hour)
-	err := claims.ValidateTimes()
-	assert.Nil(err)
 	claims.SetNotBefore(nbf)
-	err = claims.ValidateTimes()
-	assert.Nil(err)
+	valid = claims.IsAlreadyValid(leeway)
+	assert.True(valid)
 	claims.SetExpiration(exp)
-	err = claims.ValidateTimes()
-	assert.Nil(err)
+	valid = claims.IsStillValid(leeway)
+	assert.True(valid)
+	valid = claims.IsValid(leeway)
+	assert.True(valid)
 	// Invalid claims.
 	nbf = now.Add(time.Hour)
 	exp = now.Add(-time.Hour)
 	claims.SetNotBefore(nbf)
 	claims.DeleteExpiration()
-	err = claims.ValidateTimes()
-	assert.ErrorMatch(err, ".*token is not yet valid.*")
+	valid = claims.IsAlreadyValid(leeway)
+	assert.False(valid)
+	valid = claims.IsValid(leeway)
+	assert.False(valid)
 	claims.DeleteNotBefore()
 	claims.SetExpiration(exp)
-	err = claims.ValidateTimes()
-	assert.ErrorMatch(err, ".*token is expired.*")
-	// Now both are invalid, so error check is only on not
-	// nil due to possible changing internal verification
-	// order.
+	valid = claims.IsStillValid(leeway)
+	assert.False(valid)
+	valid = claims.IsValid(leeway)
+	assert.False(valid)
 	claims.SetNotBefore(nbf)
-	err = claims.ValidateTimes()
-	assert.NotNil(err)
+	valid = claims.IsValid(leeway)
+	assert.False(valid)
 }
 
 // EOF

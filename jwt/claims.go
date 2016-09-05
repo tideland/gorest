@@ -340,23 +340,34 @@ func (c Claims) DeleteSubject() string {
 	return old
 }
 
-// ValidateTimes checks validity not before and expiration
-// against current time if they are set.
-func (c Claims) ValidateTimes() error {
-	now := time.Now()
+// IsAlreadyValid checks if the claim "nbf" is after
+// the current time. The leeway is subtracted from the
+// "nbf" time to account for clock skew.
+func (c Claims) IsAlreadyValid(leeway time.Duration) bool {
 	if nbf, ok := c.NotBefore(); ok {
-		nbfLeeway := nbf.Add(-time.Minute)
-		if now.Before(nbfLeeway) {
-			return errors.New(ErrNotYetValid, errorMessages)
-		}
+		return time.Now().After(nbf.Add(-leeway))
 	}
+	return true
+}
+
+// IsStillValid checks if the claim "exp" is before
+// the current time. The leeway is added to the "exp"
+// time to account for clock skew.
+func (c Claims) IsStillValid(leeway time.Duration) bool {
 	if exp, ok := c.Expiration(); ok {
-		expLeeway := exp.Add(time.Minute)
-		if now.After(expLeeway) {
-			return errors.New(ErrExpired, errorMessages)
-		}
+		return time.Now().Before(exp.Add(leeway))
 	}
-	return nil
+	return true
+}
+
+// IsValid is a combination of IsAlreadyValid() and
+// IsStillValid().
+func (c Claims) IsValid(leeway time.Duration) bool {
+	// First check expiration as it is more likely.
+	if c.IsStillValid(leeway) {
+		return c.IsAlreadyValid(leeway)
+	}
+	return false
 }
 
 // MarshalJSON implements the json.Marshaller interface
