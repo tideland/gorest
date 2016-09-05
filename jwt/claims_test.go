@@ -190,6 +190,66 @@ func TestClaimsTime(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsExpiration checks the setting, getting, and
+// deleting of the expiration claim.
+func TestClaimsExpiration(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"exp\"")
+	goLaunch := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	claims := jwt.NewClaims()
+	exp, ok := claims.Expiration()
+	assert.False(ok)
+	none := claims.SetExpiration(goLaunch)
+	assert.Equal(none, time.Time{})
+	exp, ok = claims.Expiration()
+	assert.Equal(exp.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	old := claims.DeleteExpiration()
+	assert.Equal(old.Unix(), exp.Unix())
+	exp, ok = claims.Expiration()
+	assert.False(ok)
+}
+
+// TestClaimsIssuedAt checks the setting, getting, and
+// deleting of the issued at claim.
+func TestClaimsIssuedAt(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"iat\"")
+	goLaunch := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	claims := jwt.NewClaims()
+	iat, ok := claims.IssuedAt()
+	assert.False(ok)
+	none := claims.SetIssuedAt(goLaunch)
+	assert.Equal(none, time.Time{})
+	iat, ok = claims.IssuedAt()
+	assert.Equal(iat.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	old := claims.DeleteIssuedAt()
+	assert.Equal(old.Unix(), iat.Unix())
+	iat, ok = claims.IssuedAt()
+	assert.False(ok)
+}
+
+// TestClaimsNotBefore checks the setting, getting, and
+// deleting of the not before claim.
+func TestClaimsNotBefore(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"nbf\"")
+	goLaunch := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+	claims := jwt.NewClaims()
+	nbf, ok := claims.NotBefore()
+	assert.False(ok)
+	none := claims.SetNotBefore(goLaunch)
+	assert.Equal(none, time.Time{})
+	nbf, ok = claims.NotBefore()
+	assert.Equal(nbf.Unix(), goLaunch.Unix())
+	assert.True(ok)
+	old := claims.DeleteNotBefore()
+	assert.Equal(old.Unix(), nbf.Unix())
+	nbf, ok = claims.NotBefore()
+	assert.False(ok)
+}
+
 // TestClaimsValidity checks the validation of the not before
 // and the expiring time.
 func TestClaimsValidity(t *testing.T) {
