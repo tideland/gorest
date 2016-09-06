@@ -230,6 +230,26 @@ func TestClaimsIssuedAt(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsIssuer checks the setting, getting, and
+// deleting of the issuer at claim.
+func TestClaimsIssuer(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"iss\"")
+	issuer := "foo"
+	claims := jwt.NewClaims()
+	iss, ok := claims.Issuer()
+	assert.False(ok)
+	none := claims.SetIssuer(issuer)
+	assert.Equal(none, "")
+	iss, ok = claims.Issuer()
+	assert.Equal(iss, issuer)
+	assert.True(ok)
+	old := claims.DeleteIssuer()
+	assert.Equal(old, iss)
+	iss, ok = claims.Issuer()
+	assert.False(ok)
+}
+
 // TestClaimsNotBefore checks the setting, getting, and
 // deleting of the not before claim.
 func TestClaimsNotBefore(t *testing.T) {
