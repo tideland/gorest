@@ -200,7 +200,7 @@ func TestClaimsAudience(t *testing.T) {
 	aud, ok := claims.Audience()
 	assert.False(ok)
 	none := claims.SetAudience(audience...)
-	assert.Equal(none, "")
+	assert.Length(none, 0)
 	aud, ok = claims.Audience()
 	assert.Equal(aud, audience)
 	assert.True(ok)
