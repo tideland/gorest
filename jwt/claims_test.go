@@ -190,6 +190,26 @@ func TestClaimsTime(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsAudience checks the setting, getting, and
+// deleting of the audience claim.
+func TestClaimsAudience(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"aud\"")
+	audience := []string{"foo", "bar", "baz"}
+	claims := jwt.NewClaims()
+	aud, ok := claims.Audience()
+	assert.False(ok)
+	none := claims.SetAudience(audience...)
+	assert.Equal(none, "")
+	aud, ok = claims.Audience()
+	assert.Equal(aud, audience)
+	assert.True(ok)
+	old := claims.DeleteAudience()
+	assert.Equal(old, aud)
+	aud, ok = claims.Audience()
+	assert.False(ok)
+}
+
 // TestClaimsExpiration checks the setting, getting, and
 // deleting of the expiration claim.
 func TestClaimsExpiration(t *testing.T) {
@@ -287,6 +307,26 @@ func TestClaimsNotBefore(t *testing.T) {
 	old := claims.DeleteNotBefore()
 	assert.Equal(old.Unix(), nbf.Unix())
 	nbf, ok = claims.NotBefore()
+	assert.False(ok)
+}
+
+// TestClaimsSubject checks the setting, getting, and
+// deleting of the subject claim.
+func TestClaimsSubject(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"sub\"")
+	subject := "foo"
+	claims := jwt.NewClaims()
+	sub, ok := claims.Subject()
+	assert.False(ok)
+	none := claims.SetSubject(subject)
+	assert.Equal(none, "")
+	sub, ok = claims.Subject()
+	assert.Equal(sub, subject)
+	assert.True(ok)
+	old := claims.DeleteSubject()
+	assert.Equal(old, sub)
+	sub, ok = claims.Subject()
 	assert.False(ok)
 }
 
