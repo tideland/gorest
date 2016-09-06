@@ -210,6 +210,26 @@ func TestClaimsExpiration(t *testing.T) {
 	assert.False(ok)
 }
 
+// TestClaimsIdentifier checks the setting, getting, and
+// deleting of the identifier claim.
+func TestClaimsIdentifier(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claim \"jti\"")
+	identifier := "foo"
+	claims := jwt.NewClaims()
+	jti, ok := claims.Identifier()
+	assert.False(ok)
+	none := claims.SetIdentifier(identifier)
+	assert.Equal(none, "")
+	jti, ok = claims.Identifier()
+	assert.Equal(jti, identifier)
+	assert.True(ok)
+	old := claims.DeleteIdentifier()
+	assert.Equal(old, jti)
+	jti, ok = claims.Identifier()
+	assert.False(ok)
+}
+
 // TestClaimsIssuedAt checks the setting, getting, and
 // deleting of the issued at claim.
 func TestClaimsIssuedAt(t *testing.T) {
@@ -231,7 +251,7 @@ func TestClaimsIssuedAt(t *testing.T) {
 }
 
 // TestClaimsIssuer checks the setting, getting, and
-// deleting of the issuer at claim.
+// deleting of the issuer claim.
 func TestClaimsIssuer(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing claim \"iss\"")
