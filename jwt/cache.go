@@ -42,6 +42,7 @@ type cache struct {
 	entries map[string]*cacheEntry
 }
 
+// Get implements the Cache interface.
 func (c *cache) Get(token string) (JWT, bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -51,6 +52,13 @@ func (c *cache) Get(token string) (JWT, bool) {
 	}
 	// TODO Check claims and their validity.
 	return entry.jwt, true
+}
+
+// Put implements the Cache interface.
+func (c *cache) Put(jwt JWT) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	delete(c.entries, jwt.Token())
 }
 
 // EOF
