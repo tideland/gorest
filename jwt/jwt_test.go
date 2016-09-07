@@ -32,12 +32,6 @@ import (
 //--------------------
 
 var (
-	payload = testPayload{
-		Sub:   "1234567890",
-		Name:  "John Doe",
-		Admin: true,
-	}
-
 	esTests = []jwt.Algorithm{jwt.ES256, jwt.ES384, jwt.ES512}
 	hsTests = []jwt.Algorithm{jwt.HS256, jwt.HS384, jwt.HS512}
 	psTests = []jwt.Algorithm{jwt.PS256, jwt.PS384, jwt.PS512}
@@ -50,22 +44,20 @@ func TestESAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	assert.Nil(err)
+	claims := initClaims()
 	for _, test := range esTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
-		jwtEncode, err := jwt.Encode(payload, privateKey, test)
+		jwtEncode, err := jwt.Encode(claims, privateKey, test)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
-		var verifyPayload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, privateKey.Public())
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), privateKey.Public())
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
-		assert.Equal(payload.Sub, verifyPayload.Sub)
-		assert.Equal(payload.Name, verifyPayload.Name)
-		assert.Equal(payload.Admin, verifyPayload.Admin)
+		testClaims(assert, jwtVerify.Claims())
 	}
 }
 
@@ -74,22 +66,20 @@ func TestESAlgorithms(t *testing.T) {
 func TestHSAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	key := []byte("secret")
+	claims := initClaims()
 	for _, test := range hsTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
-		jwtEncode, err := jwt.Encode(payload, key, test)
+		jwtEncode, err := jwt.Encode(claims, key, test)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
-		var verifyPayload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, key)
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), key)
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
-		assert.Equal(payload.Sub, verifyPayload.Sub)
-		assert.Equal(payload.Name, verifyPayload.Name)
-		assert.Equal(payload.Admin, verifyPayload.Admin)
+		testClaims(assert, jwtVerify.Claims())
 	}
 }
 
@@ -99,6 +89,7 @@ func TestPSAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	assert.Nil(err)
+	claims := initClaims()
 	for _, test := range psTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
@@ -107,14 +98,11 @@ func TestPSAlgorithms(t *testing.T) {
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
-		var verifyPayload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, privateKey.Public())
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), privateKey.Public())
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
-		assert.Equal(payload.Sub, verifyPayload.Sub)
-		assert.Equal(payload.Name, verifyPayload.Name)
-		assert.Equal(payload.Admin, verifyPayload.Admin)
+		testClaims(assert, jwtVerify.Claims())
 	}
 }
 
@@ -124,22 +112,21 @@ func TestRSAlgorithms(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	assert.Nil(err)
+	claims := initClaims()
 	for _, test := range rsTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
-		jwtEncode, err := jwt.Encode(payload, privateKey, test)
+		jwtEncode, err := jwt.Encode(claims, privateKey, test)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
 		var verifyPayload testPayload
-		jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, privateKey.Public())
+		jwtVerify, err := jwt.Verify(jwtEncode.String(), privateKey.Public())
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 		assert.Equal(jwtEncode.String(), jwtVerify.String())
-		assert.Equal(payload.Sub, verifyPayload.Sub)
-		assert.Equal(payload.Name, verifyPayload.Name)
-		assert.Equal(payload.Admin, verifyPayload.Admin)
+		testClaims(assert, jwtVerify.Claims())
 	}
 }
 
@@ -149,20 +136,18 @@ func TestNoneAlgorithm(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing algorithm \"none\"")
 	// Encode.
-	jwtEncode, err := jwt.Encode(payload, "", jwt.NONE)
+	claims := initClaims()
+	jwtEncode, err := jwt.Encode(claims, "", jwt.NONE)
 	assert.Nil(err)
 	parts := strings.Split(jwtEncode.String(), ".")
 	assert.Length(parts, 3)
 	assert.Equal(parts[2], "")
 	// Verify.
-	var verifyPayload testPayload
-	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, "")
+	jwtVerify, err := jwt.Verify(jwtEncode.String(), "")
 	assert.Nil(err)
 	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 	assert.Equal(jwtEncode.String(), jwtVerify.String())
-	assert.Equal(payload.Sub, verifyPayload.Sub)
-	assert.Equal(payload.Name, verifyPayload.Name)
-	assert.Equal(payload.Admin, verifyPayload.Admin)
+	testClaims(assert, jwtVerify.Claims())
 }
 
 // TestNotMatchingAlgorithm
@@ -176,6 +161,7 @@ func TestNotMatchingAlgorithm(t *testing.T) {
 	rsPublicKey := rsPrivateKey.Public()
 	assert.Nil(err)
 	noneKey := ""
+	claims := initClaims()
 	errorMatch := ".* combination of algorithm .* and key type .*"
 	tests := []struct {
 		description string
@@ -199,14 +185,13 @@ func TestNotMatchingAlgorithm(t *testing.T) {
 	for _, test := range tests {
 		assert.Logf("testing %q algorithm key type mismatch", test.description)
 		for _, key := range test.encodeKeys {
-			_, err = jwt.Encode(payload, key, test.algorithm)
+			_, err = jwt.Encode(claims, key, test.algorithm)
 			assert.ErrorMatch(err, errorMatch)
 		}
 		jwtEncode, err := jwt.Encode(payload, test.key, test.algorithm)
 		assert.Nil(err)
 		for _, key := range test.verifyKeys {
-			var verifyPayload testPayload
-			_, err = jwt.Verify(jwtEncode.String(), &verifyPayload, key)
+			_, err = jwt.Verify(jwtEncode.String(), key)
 			assert.ErrorMatch(err, errorMatch)
 		}
 	}
@@ -243,18 +228,16 @@ func TestESTools(t *testing.T) {
 	publicKeyOut, err := jwt.ReadECPublicKey(buf)
 	assert.Nil(err)
 	// And as a last step check if they are correctly usable.
-	jwtEncode, err := jwt.Encode(payload, privateKeyOut, jwt.ES512)
+	claims := initClaims()
+	jwtEncode, err := jwt.Encode(claims, privateKeyOut, jwt.ES512)
 	assert.Nil(err)
 	parts := strings.Split(jwtEncode.String(), ".")
 	assert.Length(parts, 3)
-	var verifyPayload testPayload
-	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, publicKeyOut)
+	jwtVerify, err := jwt.Verify(jwtEncode.String(), publicKeyOut)
 	assert.Nil(err)
 	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 	assert.Equal(jwtEncode.String(), jwtVerify.String())
-	assert.Equal(payload.Sub, verifyPayload.Sub)
-	assert.Equal(payload.Name, verifyPayload.Name)
-	assert.Equal(payload.Admin, verifyPayload.Admin)
+	testClaims(assert, jwtVerify.Claims())
 }
 
 // TestRSTools tests the tools for the reading of PEM encoded
@@ -287,7 +270,8 @@ func TestRSTools(t *testing.T) {
 	publicKeyOut, err := jwt.ReadRSAPublicKey(buf)
 	assert.Nil(err)
 	// And as a last step check if they are correctly usable.
-	jwtEncode, err := jwt.Encode(payload, privateKeyOut, jwt.RS512)
+	claims := initClaims()
+	jwtEncode, err := jwt.Encode(claims, privateKeyOut, jwt.RS512)
 	assert.Nil(err)
 	parts := strings.Split(jwtEncode.String(), ".")
 	assert.Length(parts, 3)
@@ -296,9 +280,7 @@ func TestRSTools(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 	assert.Equal(jwtEncode.String(), jwtVerify.String())
-	assert.Equal(payload.Sub, verifyPayload.Sub)
-	assert.Equal(payload.Name, verifyPayload.Name)
-	assert.Equal(payload.Admin, verifyPayload.Admin)
+	testClaims(assert, jwtVerify.Claims())
 }
 
 // TestDecode tests the decoding without verifying the signature.
@@ -306,36 +288,39 @@ func TestDecode(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	assert.Nil(err)
+	claims := initClaims()
 	assert.Logf("testing decoding without verifying")
 	// Encode.
-	jwtEncode, err := jwt.Encode(payload, privateKey, jwt.RS512)
+	jwtEncode, err := jwt.Encode(claims, privateKey, jwt.RS512)
 	assert.Nil(err)
 	parts := strings.Split(jwtEncode.String(), ".")
 	assert.Length(parts, 3)
 	// Decode.
-	var decodePayload testPayload
-	jwtDecode, err := jwt.Decode(jwtEncode.String(), &decodePayload)
+	jwtDecode, err := jwt.Decode(jwtEncode.String())
 	assert.Nil(err)
 	assert.Equal(jwtEncode.Algorithm(), jwtDecode.Algorithm())
 	key, err := jwtDecode.Key()
 	assert.Nil(key)
 	assert.ErrorMatch(err, ".*no key available, only after encoding or verifying.*")
 	assert.Equal(jwtEncode.String(), jwtDecode.String())
-	assert.Equal(payload.Sub, decodePayload.Sub)
-	assert.Equal(payload.Name, decodePayload.Name)
-	assert.Equal(payload.Admin, decodePayload.Admin)
+	testClaims(assert, jwtVerify.Claims())
 }
 
 //--------------------
 // HELPERS
 //--------------------
 
-// testPayload is used as payload instead of claims
-// for stable mashalling.
-type testPayload struct {
-	Sub   string `json:"sub"`
-	Name  string `json:"name"`
-	Admin bool   `json:"admin"`
+// initClaims creates test claims.
+func initClaims() Claims {
+	claims := NewClaims()
+	claims.SetSubject("1234567890")
+	claims.Set("name", "John Doe")
+	claims.Set("admin" true)
+	return claims
+}
+
+// testClaims checks the passed claims.
+func testClaims(assert audit.Assertion, claims Claims) {
 }
 
 // EOF
