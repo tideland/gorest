@@ -32,9 +32,8 @@ type JWT interface {
 	// Stringer provides the String() method.
 	fmt.Stringer
 
-	// Payload returns the payload of the token,
-	// normally claims.
-	Payload() interface{}
+	// Claims returns the claims payload of the token.
+	Claims() Claims
 
 	// Key return the key of the token only when
 	// it is a result of encoding or verification.
@@ -51,17 +50,17 @@ type jwtHeader struct {
 }
 
 type jwt struct {
-	payload   interface{}
+	claims    Claims
 	key       Key
 	algorithm Algorithm
 	token     string
 }
 
-// Encodes creates a JSON Web Token for the given payload
+// Encodes creates a JSON Web Token for the given claims
 // based on key and algorithm.
-func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
+func Encode(claims Claims, key Key, algorithm Algorithm) (JWT, error) {
 	jwt := &jwt{
-		payload:   payload,
+		claims:    claims,
 		key:       key,
 		algorithm: algorithm,
 	}
@@ -69,11 +68,11 @@ func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "header")
 	}
-	payloadPart, err := marshallAndEncode(payload)
+	claimsPart, err := marshallAndEncode(claims)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "payload")
+		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "claims")
 	}
-	dataParts := headerPart + "." + payloadPart
+	dataParts := headerPart + "." + claimsPart
 	signaturePart, err := signAndEncode([]byte(dataParts), key, algorithm)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotEncode, errorMessages, "signature")
@@ -82,9 +81,8 @@ func Encode(payload interface{}, key Key, algorithm Algorithm) (JWT, error) {
 	return jwt, nil
 }
 
-// Decode creates a token out of a string without verification. The passed
-// payload is used for the unmarshalling of the payload part.
-func Decode(token string, payload interface{}) (JWT, error) {
+// Decode creates a token out of a string without verification.
+func Decode(token string) (JWT, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New(ErrCannotDecode, errorMessages, "parts")
@@ -94,20 +92,21 @@ func Decode(token string, payload interface{}) (JWT, error) {
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "header")
 	}
-	err = decodeAndUnmarshall(parts[1], payload)
+	var claims Claims
+	err = decodeAndUnmarshall(parts[1], claims)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "payload")
+		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "claims")
 	}
 	return &jwt{
-		payload:   payload,
+		claims:    claims,
 		algorithm: Algorithm(header.Algorithm),
 		token:     token,
 	}, nil
 }
 
 // Verify creates a token out of a string and varifies it against
-// the passed key. Like in Decode() the payload is used for unmarshalling.
-func Verify(token string, payload interface{}, key Key) (JWT, error) {
+// the passed key.
+func Verify(token string, key Key) (JWT, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New(ErrCannotVerify, errorMessages, "parts")
@@ -121,21 +120,22 @@ func Verify(token string, payload interface{}, key Key) (JWT, error) {
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "signature")
 	}
-	err = decodeAndUnmarshall(parts[1], payload)
+	var claims Claims
+	err = decodeAndUnmarshall(parts[1], claims)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "payload")
+		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "claims")
 	}
 	return &jwt{
-		payload:   payload,
+		claims:    claims,
 		key:       key,
 		algorithm: Algorithm(header.Algorithm),
 		token:     token,
 	}, nil
 }
 
-// Payload implements the JWT interface.
-func (jwt *jwt) Payload() interface{} {
-	return jwt.payload
+// Claims implements the JWT interface.
+func (jwt *jwt) Claims() Claims {
+	return jwt.claims
 }
 
 // Key implements the JWT interface.
