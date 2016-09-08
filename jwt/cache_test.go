@@ -31,10 +31,10 @@ func TestCachePutGet(t *testing.T) {
 	assert.Logf("testing cache put and get")
 	cache := jwt.NewCache(time.Minute, time.Minute)
 	key := []byte("secret")
-	claims := init.Claims()
+	claims := initClaims()
 	jwtIn, err := jwt.Encode(claims, key, jwt.HS512)
 	assert.Nil(err)
-	cache.Put(jwt)
+	cache.Put(jwtIn)
 	token := jwtIn.String()
 	jwtOut, ok := cache.Get(token)
 	assert.True(ok)
@@ -42,7 +42,7 @@ func TestCachePutGet(t *testing.T) {
 	jwtOut, ok = cache.Get("is.not.there")
 	assert.False(ok)
 	assert.Nil(jwtOut)
-	err := cache.Stop()
+	err = cache.Stop()
 	assert.Nil(err)
 }
 
