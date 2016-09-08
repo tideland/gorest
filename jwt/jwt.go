@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tideland/golib/errors"
 )
@@ -42,6 +43,10 @@ type JWT interface {
 	// Algorithm returns the algorithm of the token
 	// after encoding, decoding, or verification.
 	Algorithm() Algorithm
+
+	// IsValid is a convenience method checking the
+	// registered claims if the token is valid.
+	IsValid(leeway time.Duration) bool
 }
 
 type jwtHeader struct {
@@ -149,6 +154,11 @@ func (jwt *jwt) Key() (Key, error) {
 // Algorithm implements the JWT interface.
 func (jwt *jwt) Algorithm() Algorithm {
 	return jwt.algorithm
+}
+
+// IsValid implements the JWT interface.
+func (jwt *jwt) IsValid(leeway time.Duration) bool {
+	return jwt.claims.IsValid(leeway)
 }
 
 // String implements the Stringer interface.

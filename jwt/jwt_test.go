@@ -21,6 +21,7 @@ import (
 	"encoding/pem"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tideland/golib/audit"
 
@@ -302,6 +303,53 @@ func TestDecode(t *testing.T) {
 	assert.ErrorMatch(err, ".*no key available, only after encoding or verifying.*")
 	assert.Equal(jwtEncode.String(), jwtDecode.String())
 	testClaims(assert, jwtDecode.Claims())
+}
+
+// TestIsValid checks the time validation of a token.
+func TestIsValid(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing time validation")
+	now := time.Now()
+	leeway := time.Minute
+	key := []byte("secret")
+	// Create token with no times set, encode, decode, validate ok.
+	claims := jwt.NewClaims()
+	jwtEncode, err := jwt.Encode(claims, key, jwt.HS512)
+	assert.Nil(err)
+	jwtDecode, err := jwt.Decode(jwtEncode.String())
+	assert.Nil(err)
+	ok := jwtDecode.IsValid(leeway)
+	assert.True(ok)
+	// Now a token with a long timespan, still valid.
+	claims = jwt.NewClaims()
+	claims.SetNotBefore(now.Add(-time.Hour))
+	claims.SetExpiration(now.Add(time.Hour))
+	jwtEncode, err = jwt.Encode(claims, key, jwt.HS512)
+	assert.Nil(err)
+	jwtDecode, err = jwt.Decode(jwtEncode.String())
+	assert.Nil(err)
+	ok = jwtDecode.IsValid(leeway)
+	assert.True(ok)
+	// Now a token with a long timespan in the past, not valid.
+	claims = jwt.NewClaims()
+	claims.SetNotBefore(now.Add(-2 * time.Hour))
+	claims.SetExpiration(now.Add(-time.Hour))
+	jwtEncode, err = jwt.Encode(claims, key, jwt.HS512)
+	assert.Nil(err)
+	jwtDecode, err = jwt.Decode(jwtEncode.String())
+	assert.Nil(err)
+	ok = jwtDecode.IsValid(leeway)
+	assert.False(ok)
+	// And at last a token with a long timespan in the future, not valid.
+	claims = jwt.NewClaims()
+	claims.SetNotBefore(now.Add(time.Hour))
+	claims.SetExpiration(now.Add(2 * time.Hour))
+	jwtEncode, err = jwt.Encode(claims, key, jwt.HS512)
+	assert.Nil(err)
+	jwtDecode, err = jwt.Decode(jwtEncode.String())
+	assert.Nil(err)
+	ok = jwtDecode.IsValid(leeway)
+	assert.False(ok)
 }
 
 //--------------------
