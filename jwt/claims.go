@@ -63,6 +63,25 @@ func (c Claims) GetString(key string) (string, bool) {
 	return fmt.Sprintf("%v", value), true
 }
 
+// GetBool retrieves a bool value. It also accepts the
+// strings "1", "t", "T", "TRUE", "true", "True", "0",
+// "f", "F", "FALSE", "false", and "False".
+func (c Claims) GetBool(key string) (bool, bool) {
+	value, ok := c.Get(key)
+	if !ok {
+		return false, false
+	}
+	if b, ok := value.(bool); ok {
+		return b, true
+	}
+	if str, ok := value.(string); ok {
+		if b, err := strconv.ParseBool(str); err == nil {
+			return b, true
+		}
+	}
+	return false, false
+}
+
 // GetInt retrieves an integer value.
 func (c Claims) GetInt(key string) (int, bool) {
 	value, ok := c.Get(key)

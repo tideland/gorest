@@ -58,7 +58,7 @@ func (c *cache) Get(token string) (JWT, bool) {
 func (c *cache) Put(jwt JWT) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	delete(c.entries, jwt.Token())
+	delete(c.entries, jwt.String())
 }
 
 // EOF
