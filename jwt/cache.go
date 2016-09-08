@@ -22,6 +22,10 @@ import (
 // CACHE
 //--------------------
 
+// cleanupInterval defines the timespan between
+// two cleanup runs.
+var cleanupInterval = 5 * time.Minute
+
 // Cache provides a caching for tokens so that these
 // don't have to be decoded or verified multiple times.
 type Cache interface {
@@ -103,7 +107,7 @@ func (c *cache) backendLoop(l loop.Loop) error {
 		c.leeway = 0
 		c.entries = nil
 	}()
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(cleanupInterval)
 	for {
 		select {
 		case <-l.ShallStop():
