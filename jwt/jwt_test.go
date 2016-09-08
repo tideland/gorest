@@ -352,30 +352,4 @@ func TestIsValid(t *testing.T) {
 	assert.False(ok)
 }
 
-//--------------------
-// HELPERS
-//--------------------
-
-// initClaims creates test claims.
-func initClaims() jwt.Claims {
-	claims := jwt.NewClaims()
-	claims.SetSubject("1234567890")
-	claims.Set("name", "John Doe")
-	claims.Set("admin", true)
-	return claims
-}
-
-// testClaims checks the passed claims.
-func testClaims(assert audit.Assertion, claims jwt.Claims) {
-	sub, ok := claims.Subject()
-	assert.True(ok)
-	assert.Equal(sub, "1234567890")
-	name, ok := claims.GetString("name")
-	assert.True(ok)
-	assert.Equal(name, "John Doe")
-	admin, ok := claims.GetBool("admin")
-	assert.True(ok)
-	assert.True(admin)
-}
-
 // EOF
