@@ -14,6 +14,8 @@ package jwt
 import (
 	"sync"
 	"time"
+
+	"github.com/tideland/golib/loop"
 )
 
 //--------------------
@@ -28,6 +30,9 @@ type Cache interface {
 
 	// Put adds a token to the cache.
 	Put(jwt JWT)
+
+	// Stop tells the cache to end working.
+	Stop() error
 }
 
 // cacheEntry manages a token and its access time.
@@ -39,22 +44,23 @@ type cacheEntry struct {
 // cache implements Cache.
 type cache struct {
 	mutex   sync.Mutex
-	cleanup time.Duration
+	ttl     time.Duration
 	leeway  time.Duration
 	entries map[string]*cacheEntry
+	loop    loop.Loop
 }
 
 // NewCache creates a new JWT caching. It takes two
 // durations. The first one is the time a token hasn't
 // been used anymore before it is cleaned up. The second
 // one is the leeway taken for token time validations.
-func NewCache(cleanup, leeway time.Duration) Cache {
+func NewCache(ttl, leeway time.Duration) Cache {
 	c := &cache{
-		cleanup: cleanup,
+		ttl:     ttl,
 		leeway:  leeway,
 		entries: map[string]*cacheEntry{},
 	}
-	// TODO Start cleanup goroutine.
+	c.loop = loop.Go(c.backendLoop, "jwt", "cache")
 	return c
 }
 
@@ -82,6 +88,47 @@ func (c *cache) Put(jwt JWT) {
 	if jwt.IsValid(c.leeway) {
 		c.entries[jwt.String()] = &cacheEntry{jwt, time.Now()}
 	}
+}
+
+// Stop implements the Cache interface.
+func (c *cache) Stop() error {
+	return c.loop.Stop()
+}
+
+// backendLoop runs a cleaning session every five minutes.
+func (c *cache) backendLoop(l loop.Loop) error {
+	defer func() {
+		// Some cleanup after stop or error.
+		c.ttl = 0
+		c.leeway = 0
+		c.entries = nil
+	}()
+	ticker := time.NewTicker(5 * time.Minute)
+	for {
+		select {
+		case <-l.ShallStop():
+			return nil
+		case <-ticker.C:
+			c.cleanup()
+		}
+	}
+}
+
+// cleanup checks for invalid or unused tokens.
+func (c *cache) cleanup() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	valids := map[string]*cacheEntry{}
+	now := time.Now()
+	for token, entry := range c.entries {
+		if entry.jwt.IsValid(c.leeway) {
+			if entry.accessed.Add(c.ttl).Before(now) {
+				// Everything fine.
+				valids[token] = entry
+			}
+		}
+	}
+	c.entries = valids
 }
 
 // EOF
