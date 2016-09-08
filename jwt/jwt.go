@@ -93,7 +93,7 @@ func Decode(token string) (JWT, error) {
 		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "header")
 	}
 	var claims Claims
-	err = decodeAndUnmarshall(parts[1], claims)
+	err = decodeAndUnmarshall(parts[1], &claims)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "claims")
 	}
@@ -121,7 +121,7 @@ func Verify(token string, key Key) (JWT, error) {
 		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "signature")
 	}
 	var claims Claims
-	err = decodeAndUnmarshall(parts[1], claims)
+	err = decodeAndUnmarshall(parts[1], &claims)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotVerify, errorMessages, "claims")
 	}

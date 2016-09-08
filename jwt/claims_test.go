@@ -117,6 +117,34 @@ func TestClaimsString(t *testing.T) {
 	assert.True(ok)
 }
 
+// TestClaimsBool tests the bool operations
+// on claims.
+func TestClaimsBool(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims bool handling")
+	claims := jwt.NewClaims()
+	claims.Set("foo", true)
+	claims.Set("bar", false)
+	claims.Set("baz", "T")
+	claims.Set("bingo", "0")
+	claims.Set("yadda", "nope")
+	foo, ok := claims.GetBool("foo")
+	assert.True(foo)
+	assert.True(ok)
+	bar, ok := claims.GetBool("bar")
+	assert.False(bar)
+	assert.True(ok)
+	baz, ok := claims.GetBool("baz")
+	assert.True(baz)
+	assert.True(ok)
+	bingo, ok := claims.GetBool("bingo")
+	assert.False(bingo)
+	assert.True(ok)
+	yadda, ok := claims.GetBool("yadda")
+	assert.False(yadda)
+	assert.False(ok)
+}
+
 // TestClaimsInt tests the int operations
 // on claims.
 func TestClaimsInt(t *testing.T) {

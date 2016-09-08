@@ -93,7 +93,7 @@ func TestPSAlgorithms(t *testing.T) {
 	for _, test := range psTests {
 		assert.Logf("testing algorithm %q", test)
 		// Encode.
-		jwtEncode, err := jwt.Encode(payload, privateKey, test)
+		jwtEncode, err := jwt.Encode(claims, privateKey, test)
 		assert.Nil(err)
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
@@ -121,7 +121,6 @@ func TestRSAlgorithms(t *testing.T) {
 		parts := strings.Split(jwtEncode.String(), ".")
 		assert.Length(parts, 3)
 		// Verify.
-		var verifyPayload testPayload
 		jwtVerify, err := jwt.Verify(jwtEncode.String(), privateKey.Public())
 		assert.Nil(err)
 		assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
@@ -188,7 +187,7 @@ func TestNotMatchingAlgorithm(t *testing.T) {
 			_, err = jwt.Encode(claims, key, test.algorithm)
 			assert.ErrorMatch(err, errorMatch)
 		}
-		jwtEncode, err := jwt.Encode(payload, test.key, test.algorithm)
+		jwtEncode, err := jwt.Encode(claims, test.key, test.algorithm)
 		assert.Nil(err)
 		for _, key := range test.verifyKeys {
 			_, err = jwt.Verify(jwtEncode.String(), key)
@@ -275,8 +274,7 @@ func TestRSTools(t *testing.T) {
 	assert.Nil(err)
 	parts := strings.Split(jwtEncode.String(), ".")
 	assert.Length(parts, 3)
-	var verifyPayload testPayload
-	jwtVerify, err := jwt.Verify(jwtEncode.String(), &verifyPayload, publicKeyOut)
+	jwtVerify, err := jwt.Verify(jwtEncode.String(), publicKeyOut)
 	assert.Nil(err)
 	assert.Equal(jwtEncode.Algorithm(), jwtVerify.Algorithm())
 	assert.Equal(jwtEncode.String(), jwtVerify.String())
@@ -303,7 +301,7 @@ func TestDecode(t *testing.T) {
 	assert.Nil(key)
 	assert.ErrorMatch(err, ".*no key available, only after encoding or verifying.*")
 	assert.Equal(jwtEncode.String(), jwtDecode.String())
-	testClaims(assert, jwtVerify.Claims())
+	testClaims(assert, jwtDecode.Claims())
 }
 
 //--------------------
@@ -311,16 +309,25 @@ func TestDecode(t *testing.T) {
 //--------------------
 
 // initClaims creates test claims.
-func initClaims() Claims {
-	claims := NewClaims()
+func initClaims() jwt.Claims {
+	claims := jwt.NewClaims()
 	claims.SetSubject("1234567890")
 	claims.Set("name", "John Doe")
-	claims.Set("admin" true)
+	claims.Set("admin", true)
 	return claims
 }
 
 // testClaims checks the passed claims.
-func testClaims(assert audit.Assertion, claims Claims) {
+func testClaims(assert audit.Assertion, claims jwt.Claims) {
+	sub, ok := claims.Subject()
+	assert.True(ok)
+	assert.Equal(sub, "1234567890")
+	name, ok := claims.GetString("name")
+	assert.True(ok)
+	assert.Equal(name, "John Doe")
+	admin, ok := claims.GetBool("admin")
+	assert.True(ok)
+	assert.True(admin)
 }
 
 // EOF
