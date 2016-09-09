@@ -62,5 +62,11 @@ func VerifiedTokenFromRequest(req *http.Request, key Key) (JWT, error) {
 	return Verify(fields[1], key)
 }
 
+// AddTokenToRequest adds a token as header to a request for
+// usage by a client.
+func AddTokenToRequest(req *http.Request, jwt JWT) *http.Request {
+	req.Header.Add("Authorization", "Bearer " + jwt.String())
+	return req
+}
 
 // EOF
