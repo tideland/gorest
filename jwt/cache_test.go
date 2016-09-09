@@ -46,4 +46,27 @@ func TestCachePutGet(t *testing.T) {
 	assert.Nil(err)
 }
 
+// TestCacheCleanup tests the cleanup of the JWT cache.
+func TestCacheCleanup(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing cache cleanup")
+	reset := jwt.SetCleanupInterval(time.Second)
+	defer reset()
+	cache := jwt.NewCache(time.Second, time.Second)
+	key := []byte("secret")
+	claims := initClaims()
+	jwtIn, err := jwt.Encode(claims, key, jwt.HS512)
+	assert.Nil(err)
+	cache.Put(jwtIn)
+	token := jwtIn.String()
+	jwtOut, ok := cache.Get(token)
+	assert.True(ok)
+	assert.Equal(jwtIn, jwtOut)
+	// Now wait a bit an try again.
+	time.Sleep(5 * time.Second)
+	jwtOut, ok = cache.Get(token)
+	assert.False(ok)
+	assert.Nil(jwtOut)
+}
+
 // EOF
