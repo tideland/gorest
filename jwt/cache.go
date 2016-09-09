@@ -126,7 +126,7 @@ func (c *cache) cleanup() {
 	now := time.Now()
 	for token, entry := range c.entries {
 		if entry.jwt.IsValid(c.leeway) {
-			if entry.accessed.Add(c.ttl).Before(now) {
+			if entry.accessed.Add(c.ttl).After(now) {
 				// Everything fine.
 				valids[token] = entry
 			}
