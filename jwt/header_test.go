@@ -32,7 +32,7 @@ import (
 // in a handler.
 func TestDecodeRequest(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
-	assert.Logf("testing decoding a token")
+	assert.Logf("testing decode a request token")
 	key := []byte("secret")
 	claimsIn := initClaims()
 	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
@@ -42,6 +42,36 @@ func TestDecodeRequest(t *testing.T) {
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil))
+	assert.Nil(err)
+	// Perform test request.
+	resp := ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/test/jwt/1234567890",
+		Header: restaudit.KeyValues{"Accept": "application/json"},
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
+		},
+	})
+	var claimsOut jwt.Claims
+	err = json.Unmarshal(resp.Body, &claimsOut)
+	assert.Nil(err)
+	assert.Equal(claimsOut, claimsIn)
+}
+
+// TestVerifyRequest tests the verification of a token
+// in a handler.
+func TestVerifyRequest(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing verify a request token")
+	key := []byte("secret")
+	claimsIn := initClaims()
+	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
+	assert.Nil(err)
+	// Setup the test server.
+	mux := rest.NewMultiplexer()
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key))
 	assert.Nil(err)
 	// Perform test request.
 	resp := ts.DoRequest(&restaudit.Request{
