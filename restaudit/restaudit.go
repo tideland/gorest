@@ -37,6 +37,7 @@ type Request struct {
 	Header  KeyValues
 	Cookies KeyValues
 	Body    []byte
+	RequestProcessor func(req *http.Request) *http.Request
 }
 
 // Response wraps all infos of a test response.
@@ -102,6 +103,10 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 			Value: value,
 		}
 		httpReq.AddCookie(cookie)
+	}
+	// Check if request shall be processed before performed.
+	if req.RequestProcessor != nil {
+		httpReq = req.RequestProcessor(httpReq)
 	}
 	// Now do it.
 	resp, err := c.Do(httpReq)

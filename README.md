@@ -13,7 +13,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.0.0 beta 2016-09-09
+Version 2.0.0 beta 2016-09-10
 
 ## Packages
 
@@ -34,6 +34,12 @@ Some general purpose handlers for the library.
 JWT package for secure authentication and information exchange like claims.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/jwt?status.svg)](https://godoc.org/github.com/tideland/gorest/jwt)
+
+#### REST Audit
+
+Helpers for the unit tests of the Go REST Server Library.
+
+[![GoDoc](https://godoc.org/github.com/tideland/gorest/restaudit?status.svg)](https://godoc.org/github.com/tideland/gorest/restaudit)
 
 ## Contributors
 
