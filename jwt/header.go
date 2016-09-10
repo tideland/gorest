@@ -22,15 +22,15 @@ import (
 // REQUEST HANDLING
 //--------------------
 
-// TokenFromJob retrieves a possible JWT from the request
+// DecodeTokenFromJob retrieves a possible JWT from the request
 // inside a REST job. The JWT is only decoded.
-func TokenFromJob(job rest.Job) (JWT, error) {
-	return TokenFromRequest(job.Request())
+func DecodeTokenFromJob(job rest.Job) (JWT, error) {
+	return DecodeTokenFromRequest(job.Request())
 }
 
-// TokenFromRequest retrieves a possible JWT from a
+// DecodeTokenFromRequest retrieves a possible JWT from a
 // HTTP request. The JWT is only decoded.
-func TokenFromRequest(req *http.Request) (JWT, error) {
+func DecodeTokenFromRequest(req *http.Request) (JWT, error) {
 	authorization := req.Header.Get("Authorization")
 	if authorization == "" {
 		return nil, nil
@@ -42,15 +42,15 @@ func TokenFromRequest(req *http.Request) (JWT, error) {
 	return Decode(fields[1])
 }
 
-// VerifiedTokenFromJob retrieves a possible JWT from 
+// VerifyTokenFromJob retrieves a possible JWT from 
 // the request inside a REST job. The JWT is verified.
-func VerifiedTokenFromJob(job rest.Job, key Key) (JWT, error) {
-	return VerifiedTokenFromRequest(job.Request(), key)
+func VerifyTokenFromJob(job rest.Job, key Key) (JWT, error) {
+	return VerifyTokenFromJob(job.Request(), key)
 }
 
-// VerifiedTokenFromRequest retrieves a possible JWT from a
+// VerifyTokenFromRequest retrieves a possible JWT from a
 // HTTP request. The JWT is verified.
-func VerifiedTokenFromRequest(req *http.Request, key Key) (JWT, error) {
+func VerifyTokenFromRequest(req *http.Request, key Key) (JWT, error) {
 	authorization := req.Header.Get("Authorization")
 	if authorization == "" {
 		return nil, nil
