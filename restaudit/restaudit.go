@@ -32,11 +32,11 @@ type KeyValues map[string]string
 
 // Request wraps all infos for a test request.
 type Request struct {
-	Method  string
-	Path    string
-	Header  KeyValues
-	Cookies KeyValues
-	Body    []byte
+	Method           string
+	Path             string
+	Header           KeyValues
+	Cookies          KeyValues
+	Body             []byte
 	RequestProcessor func(req *http.Request) *http.Request
 }
 

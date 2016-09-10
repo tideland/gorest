@@ -42,10 +42,10 @@ func DecodeTokenFromRequest(req *http.Request) (JWT, error) {
 	return Decode(fields[1])
 }
 
-// VerifyTokenFromJob retrieves a possible JWT from 
+// VerifyTokenFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is verified.
 func VerifyTokenFromJob(job rest.Job, key Key) (JWT, error) {
-	return VerifyTokenFromJob(job.Request(), key)
+	return VerifyTokenFromRequest(job.Request(), key)
 }
 
 // VerifyTokenFromRequest retrieves a possible JWT from a
@@ -65,7 +65,7 @@ func VerifyTokenFromRequest(req *http.Request, key Key) (JWT, error) {
 // AddTokenToRequest adds a token as header to a request for
 // usage by a client.
 func AddTokenToRequest(req *http.Request, jwt JWT) *http.Request {
-	req.Header.Add("Authorization", "Bearer " + jwt.String())
+	req.Header.Add("Authorization", "Bearer "+jwt.String())
 	return req
 }
 

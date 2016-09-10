@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/tideland/golib/audit"
 
@@ -34,21 +35,21 @@ func TestDecodeRequest(t *testing.T) {
 	assert.Logf("testing decoding a token")
 	key := []byte("secret")
 	claimsIn := initClaims()
-	jwt, err := jwt.Encode(claimsIn, key, jwt.HS512)
+	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
 	assert.Nil(err)
 	// Setup the test server.
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err := mux.Register("test", "jwt", NewTestHandler("jwt", assert))
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil))
 	assert.Nil(err)
 	// Perform test request.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
 		Path:   "/test/jwt/1234567890",
 		Header: restaudit.KeyValues{"Accept": "application/json"},
-		ProcessRequest: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwt)
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
 		},
 	})
 	var claimsOut jwt.Claims
@@ -65,48 +66,48 @@ func TestDecodeRequest(t *testing.T) {
 type testHandler struct {
 	id     string
 	assert audit.Assertion
-	key	   jwt.Key
+	key    jwt.Key
 }
 
 func NewTestHandler(id string, assert audit.Assertion, key jwt.Key) rest.ResourceHandler {
-	return &TestHandler{id, assert, key}
+	return &testHandler{id, assert, key}
 }
 
-func (th *TestHandler) ID() string {
+func (th *testHandler) ID() string {
 	return th.id
 }
 
-func (th *TestHandler) Init(env rest.Environment, domain, resource string) error {
+func (th *testHandler) Init(env rest.Environment, domain, resource string) error {
 	return nil
 }
 
-func (th *TestHandler) Get(job rest.Job) (bool, error) {
-	if th.Key == nil {
+func (th *testHandler) Get(job rest.Job) (bool, error) {
+	if th.key == nil {
 		return th.testDecode(job)
 	} else {
 		return th.testVerify(job)
 	}
 }
 
-func (th *TestHandler) testDecode(job rest.Job) (bool, error) {
-	jwt, err := jwt.DecodeTokenFromJob(job)
+func (th *testHandler) testDecode(job rest.Job) (bool, error) {
+	jwtOut, err := jwt.DecodeTokenFromJob(job)
 	th.assert.Nil(err)
-	th.assert.True(jwt.IsValid(time.Minute))
-	subject, ok := jwt.Subject()
+	th.assert.True(jwtOut.IsValid(time.Minute))
+	subject, ok := jwtOut.Claims().Subject()
 	th.assert.True(ok)
 	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(jwt.Claims())
+	job.JSON(true).Write(jwtOut.Claims())
 	return true, nil
 }
 
-func (th *TestHandler) testVerify(job rest.Job) (bool, error) {
-	jwt, err := jwt.VerifyTokenFromJob(job, th.key)
+func (th *testHandler) testVerify(job rest.Job) (bool, error) {
+	jwtOut, err := jwt.VerifyTokenFromJob(job, th.key)
 	th.assert.Nil(err)
-	th.assert.True(jwt.IsValid(time.Minute))
-	subject, ok := jwt.Subject()
+	th.assert.True(jwtOut.IsValid(time.Minute))
+	subject, ok := jwtOut.Claims().Subject()
 	th.assert.True(ok)
 	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(jwt.Claims())
+	job.JSON(true).Write(jwtOut.Claims())
 	return true, nil
 }
 

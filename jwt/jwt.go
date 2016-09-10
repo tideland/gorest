@@ -100,7 +100,7 @@ func Decode(token string) (JWT, error) {
 	var claims Claims
 	err = decodeAndUnmarshall(parts[1], &claims)
 	if err != nil {
-		return nil, errors.Annotat(err, ErrCannotDecode, errorMessages, "claims")
+		return nil, errors.Annotate(err, ErrCannotDecode, errorMessages, "claims")
 	}
 	return &jwt{
 		claims:    claims,
