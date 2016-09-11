@@ -29,7 +29,7 @@ import (
 func TestCachePutGet(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing cache put and get")
-	cache := jwt.NewCache(time.Minute, time.Minute)
+	cache := jwt.NewCache(time.Minute, time.Minute, time.Minute, 10)
 	key := []byte("secret")
 	claims := initClaims()
 	jwtIn, err := jwt.Encode(claims, key, jwt.HS512)
@@ -51,9 +51,7 @@ func TestCachePutGet(t *testing.T) {
 func TestCacheAccessCleanup(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing cache access based cleanup")
-	reset := jwt.SetCleanupInterval(time.Second)
-	defer reset()
-	cache := jwt.NewCache(time.Second, time.Second)
+	cache := jwt.NewCache(time.Second, time.Second, time.Second, 10)
 	key := []byte("secret")
 	claims := initClaims()
 	jwtIn, err := jwt.Encode(claims, key, jwt.HS512)
@@ -75,9 +73,7 @@ func TestCacheAccessCleanup(t *testing.T) {
 func TestCacheValidityCleanup(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	assert.Logf("testing cache validity based cleanup")
-	reset := jwt.SetCleanupInterval(time.Second)
-	defer reset()
-	cache := jwt.NewCache(time.Minute, time.Second)
+	cache := jwt.NewCache(time.Minute, time.Second, time.Second, 10)
 	key := []byte("secret")
 	now := time.Now()
 	nbf := now.Add(-2 * time.Second)
