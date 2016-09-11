@@ -32,8 +32,7 @@ type Cache interface {
 	Put(jwt JWT)
 
 	// Cleanup manually tells the cache to cleanup.
-	// Setting force to true empties it totally.
-	Cleanup(force bool)
+	Cleanup()
 
 	// Stop tells the cache to end working.
 	Stop() error
@@ -47,28 +46,31 @@ type cacheEntry struct {
 
 // cache implements Cache.
 type cache struct {
-	mutex   sync.Mutex
-	entries map[string]*cacheEntry
-	ttl     time.Duration
-	leeway  time.Duration
-	interval time.Duration
-	maxSize int
-	cleanupc chan bool
-	loop    loop.Loop
+	mutex      sync.Mutex
+	entries    map[string]*cacheEntry
+	ttl        time.Duration
+	leeway     time.Duration
+	interval   time.Duration
+	maxEntries int
+	cleanupc   chan time.Duration
+	loop       loop.Loop
 }
 
-// NewCache creates a new JWT caching. It takes two
-// durations. The first one is the time a token hasn't
-// been used anymore before it is cleaned up. The second
-// one is the leeway taken for token time validations.
-func NewCache(ttl, leeway, interval time.Duration, maxSize int) Cache {
+// NewCache creates a new JWT caching. The ttl value controls
+// the time a cached token may be unused before cleanup. The
+// leeway is used for the time validation of the token itself.
+// The duration of the interval controls how often the background
+// cleanup is running. Final configuration parameter is the maximum
+// number of entries inside the cache. If these grow too fast the
+// ttl will be temporarilly reduced for cleanup.
+func NewCache(ttl, leeway, interval time.Duration, maxEntries int) Cache {
 	c := &cache{
-		entries: map[string]*cacheEntry{},
-		ttl:     ttl,
-		leeway:  leeway,
-		interval: interval,
-		maxSize: maxSize,
-		cleanupc: make(chan bool, 1),
+		entries:    map[string]*cacheEntry{},
+		ttl:        ttl,
+		leeway:     leeway,
+		interval:   interval,
+		maxEntries: maxEntries,
+		cleanupc:   make(chan time.Duration, 5),
 	}
 	c.loop = loop.Go(c.backendLoop, "jwt", "cache")
 	return c
@@ -97,12 +99,17 @@ func (c *cache) Put(jwt JWT) {
 	defer c.mutex.Unlock()
 	if jwt.IsValid(c.leeway) {
 		c.entries[jwt.String()] = &cacheEntry{jwt, time.Now()}
+		lenEntries := len(c.entries)
+		if lenEntries > c.maxEntries {
+			ttl := int64(c.ttl) / int64(lenEntries) * int64(c.maxEntries)
+			c.cleanupc <- time.Duration(ttl)
+		}
 	}
 }
 
 // Cleanup implements the Cache interface.
-func (c *cache) Cleanup(force bool) {
-	c.cleanupc <- force
+func (c *cache) Cleanup() {
+	c.cleanupc <- c.ttl
 }
 
 // Stop implements the Cache interface.
@@ -121,29 +128,23 @@ func (c *cache) backendLoop(l loop.Loop) error {
 		select {
 		case <-l.ShallStop():
 			return nil
-		case force := <-c.cleanupc:
-			c.cleanup(force)
+		case ttl := <-c.cleanupc:
+			c.cleanup(ttl)
 		case <-ticker.C:
-			c.cleanup(false)
+			c.cleanup(c.ttl)
 		}
 	}
 }
 
 // cleanup checks for invalid or unused tokens.
-func (c *cache) cleanup(force bool) {
+func (c *cache) cleanup(ttl time.Duration) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	valids := map[string]*cacheEntry{}
-	if force {
-		// Forced cleanup removes all entries.
-		c.entries = valids
-		return
-	}
-	// Check for valid and accessed entries.
 	now := time.Now()
 	for token, entry := range c.entries {
 		if entry.jwt.IsValid(c.leeway) {
-			if entry.accessed.Add(c.ttl).After(now) {
+			if entry.accessed.Add(ttl).After(now) {
 				// Everything fine.
 				valids[token] = entry
 			}
