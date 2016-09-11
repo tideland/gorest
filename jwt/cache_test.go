@@ -12,6 +12,7 @@ package jwt_test
 //--------------------
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -100,6 +101,26 @@ func TestCacheValidityCleanup(t *testing.T) {
 		assert.Equal(jwtIn, jwtOut)
 	}
 	assert.True(i > 1 && i < 4)
+}
+
+// TestCacheLoad tests the cache load based cleanup.
+func TestCacheLoad(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing cache load based cleanup")
+	cacheTime := 100 * time.Millisecond
+	cache := jwt.NewCache(2*cacheTime, cacheTime, cacheTime, 4)
+	claims := initClaims()
+	// Now fill the cache and check that it doesn't
+	// grow too high.
+	var i int
+	for i = 0; i < 10; i++ {
+		time.Sleep(50 * time.Millisecond)
+		key := []byte(fmt.Sprintf("secret-%d", i))
+		jwtIn, err := jwt.Encode(claims, key, jwt.HS512)
+		assert.Nil(err)
+		size := cache.Put(jwtIn)
+		assert.True(size < 6)
+	}
 }
 
 // EOF

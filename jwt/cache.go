@@ -29,7 +29,7 @@ type Cache interface {
 	Get(token string) (JWT, bool)
 
 	// Put adds a token to the cache.
-	Put(jwt JWT)
+	Put(jwt JWT) int
 
 	// Cleanup manually tells the cache to cleanup.
 	Cleanup()
@@ -94,7 +94,7 @@ func (c *cache) Get(token string) (JWT, bool) {
 }
 
 // Put implements the Cache interface.
-func (c *cache) Put(jwt JWT) {
+func (c *cache) Put(jwt JWT) int {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if jwt.IsValid(c.leeway) {
@@ -105,6 +105,7 @@ func (c *cache) Put(jwt JWT) {
 			c.cleanupc <- time.Duration(ttl)
 		}
 	}
+	return len(c.entries)
 }
 
 // Cleanup implements the Cache interface.
