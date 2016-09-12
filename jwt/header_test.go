@@ -120,7 +120,7 @@ func (th *testHandler) Get(job rest.Job) (bool, error) {
 }
 
 func (th *testHandler) testDecode(job rest.Job) (bool, error) {
-	jwtOut, err := jwt.DecodeTokenFromJob(job)
+	jwtOut, err := jwt.DecodeFromJob(job)
 	th.assert.Nil(err)
 	th.assert.True(jwtOut.IsValid(time.Minute))
 	subject, ok := jwtOut.Claims().Subject()
@@ -131,7 +131,7 @@ func (th *testHandler) testDecode(job rest.Job) (bool, error) {
 }
 
 func (th *testHandler) testVerify(job rest.Job) (bool, error) {
-	jwtOut, err := jwt.VerifyTokenFromJob(job, th.key)
+	jwtOut, err := jwt.VerifyFromJob(job, th.key)
 	th.assert.Nil(err)
 	th.assert.True(jwtOut.IsValid(time.Minute))
 	subject, ok := jwtOut.Claims().Subject()
