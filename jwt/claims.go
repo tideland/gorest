@@ -148,6 +148,26 @@ func (c Claims) GetTime(key string) (time.Time, bool) {
 	}
 }
 
+// GetMarshalled unmarshalls the JSON value of the key and stores
+// it in the value pointed to by v.
+func (c Claims) GetMarshalled(key string, v interface{}) (bool, error) {
+	value, ok := c.Get(key)
+	if !ok {
+		return false, nil
+	}
+	// Need to go the way via JSON again due to the generic
+	// map of strings to interfaces.
+	marshalled, err := json.Marshal(value)
+	if err != nil {
+		return false, err
+	}
+	err = json.Unmarshal(marshalled, v)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Set sets a value in the claims. It returns a potential
 // old value.
 func (c Claims) Set(key string, value interface{}) interface{} {
