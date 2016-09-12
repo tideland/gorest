@@ -20,7 +20,7 @@
 // boolean is more interesting. Registering a handler is based on a
 // domain and a resource. The URL
 //
-// /<DOMAIN>/<RESOURCE>
+//     /<DOMAIN>/<RESOURCE>
 //
 // leads to a handler, or even better, to a list of handlers. All
 // are used as long as the returned boolean value is true. E.g. the
@@ -28,9 +28,22 @@
 // authorization, and the third one does the business. Additionally
 // the URL
 //
-// /<DOMAIN>/<RESOURCE>/<ID>
+//     /<DOMAIN>/<RESOURCE>/<ID>
 //
 // provides the resource identifier via Job.ResourceID().
+//
+// The handlers then are deployed to the Multiplexer which implements
+// the Handler interface of the net/http package. So the typical order
+// is
+//
+//     mux := rest.NewMultiplexer()
+//     mux.Register("domain", "resource-type-a", NewTypeAHandler("foo"))
+//     mux.Register("domain", "resource-type-b", NewTypeBHandler("bar"))
+//     mux.Register("admin", "user", NewUserManagementHandler())
+//     http.ListenAndServe(":8000", mux)
+//
+// Additionally further handlers can be registered or running once
+// removed during runtime.
 package rest
 
 //--------------------
@@ -47,7 +60,7 @@ import (
 
 // PackageVersion returns the version of the version package.
 func PackageVersion() version.Version {
-	return version.New(2, 0, 0, "beta", "2016-09-02")
+	return version.New(2, 0, 0, "beta", "2016-09-12")
 }
 
 // EOF
