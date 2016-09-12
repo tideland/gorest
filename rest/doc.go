@@ -15,6 +15,37 @@
 // according methods get a Job as argument. It provides convenient
 // helpers for the processing of the job.
 //
+//     type myHandler struct {
+//         id string
+//     }
+//
+//     func NewMyHandler(id string) rest.ResourceHandler {
+//         return &myHandler{id}
+//     }
+//
+//     func (h *myHandler) ID() string {
+//         return h.id
+//     }
+//
+//     func (h *myHandler) Init(env rest.Environment, domain, resource string) error {
+//         // Nothing to do in this example.
+//         return nil
+//     }
+//
+//     // Get handles reading of resources, here simplified w/o
+//     // error handling.
+//     func (h *myHandler) Get(job rest.Job) (bool, error) {
+//         id := job.ResourceID()
+//         if id == "" {
+//            all := model.GetAllData()
+//            job.JSON(true).Write(all)
+//            return true, nil
+//         }
+//         one := model.GetOneData(id)
+//         job.JSON(true).Write(one)
+//         return true, nil
+//     }
+//
 // The processing methods return two values: a boolean and an error.
 // The latter is pretty clear, it signals a job processing error. The
 // boolean is more interesting. Registering a handler is based on a
