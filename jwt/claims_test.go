@@ -218,6 +218,45 @@ func TestClaimsTime(t *testing.T) {
 	assert.False(ok)
 }
 
+// nestedValue is used as a structured value of a claim.
+type nestedValue struct {
+	Name  string
+	Value int
+}
+
+// TestClaimsMarshalledValue tests the marshalling and
+// unmarshalling of structures as values.
+func TestClaimsMarshalledValue(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing claims deep value unmarshalling")
+	baz := []*nestedValue{
+		{"one", 1},
+		{"two", 2},
+		{"three", 3},
+	}
+	claims := jwt.NewClaims()
+	claims.Set("foo", "bar")
+	claims.Set("baz", baz)
+	// Now marshal and unmarshal the claims.
+	jsonValue, err := json.Marshal(claims)
+	assert.NotNil(jsonValue)
+	assert.Nil(err)
+	var unmarshalled jwt.Claims
+	err = json.Unmarshal(jsonValue, &unmarshalled)
+	assert.Nil(err)
+	assert.Length(unmarshalled, 2)
+	foo, ok := claims.Get("foo")
+	assert.Equal(foo, "bar")
+	assert.True(ok)
+	var unmarshalledBaz []*nestedValue
+	ok, err = claims.GetMarshalled("baz", &unmarshalledBaz)
+	assert.True(ok)
+	assert.Nil(err)
+	assert.Length(unmarshalledBaz, 3)
+	assert.Equal(unmarshalledBaz[0].Name, "one")
+	assert.Equal(unmarshalledBaz[2].Value, 3)
+}
+
 // TestClaimsAudience checks the setting, getting, and
 // deleting of the audience claim.
 func TestClaimsAudience(t *testing.T) {
