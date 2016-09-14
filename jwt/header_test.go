@@ -41,7 +41,7 @@ func TestDecodeRequest(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil))
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
 	assert.Nil(err)
 	// Perform test request.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -53,6 +53,48 @@ func TestDecodeRequest(t *testing.T) {
 		},
 	})
 	var claimsOut jwt.Claims
+	err = json.Unmarshal(resp.Body, &claimsOut)
+	assert.Nil(err)
+	assert.Equal(claimsOut, claimsIn)
+}
+
+// TestDecodeCachedRequest tests the decoding of a token
+// in a handler including usage of the cache.
+func TestDecodeCachedRequest(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing decode a request token using a cache")
+	key := []byte("secret")
+	claimsIn := initClaims()
+	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
+	assert.Nil(err)
+	// Setup the test server.
+	mux := rest.NewMultiplexer()
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, true))
+	assert.Nil(err)
+	// Perform first test request.
+	resp := ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/test/jwt/1234567890",
+		Header: restaudit.KeyValues{"Accept": "application/json"},
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
+		},
+	})
+	var claimsOut jwt.Claims
+	err = json.Unmarshal(resp.Body, &claimsOut)
+	assert.Nil(err)
+	assert.Equal(claimsOut, claimsIn)
+	// Perform second test request.
+	resp = ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/test/jwt/1234567890",
+		Header: restaudit.KeyValues{"Accept": "application/json"},
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
+		},
+	})
 	err = json.Unmarshal(resp.Body, &claimsOut)
 	assert.Nil(err)
 	assert.Equal(claimsOut, claimsIn)
@@ -71,7 +113,7 @@ func TestVerifyRequest(t *testing.T) {
 	mux := rest.NewMultiplexer()
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key))
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, false))
 	assert.Nil(err)
 	// Perform test request.
 	resp := ts.DoRequest(&restaudit.Request{
@@ -97,10 +139,15 @@ type testHandler struct {
 	id     string
 	assert audit.Assertion
 	key    jwt.Key
+	cache  jwt.Cache
 }
 
-func NewTestHandler(id string, assert audit.Assertion, key jwt.Key) rest.ResourceHandler {
-	return &testHandler{id, assert, key}
+func NewTestHandler(id string, assert audit.Assertion, key jwt.Key, useCache bool) rest.ResourceHandler {
+	var cache jwt.Cache
+	if useCache {
+		cache = jwt.NewCache(time.Minute, time.Minute, time.Minute, 10)
+	}
+	return &testHandler{id, assert, key, cache}
 }
 
 func (th *testHandler) ID() string {
@@ -120,7 +167,13 @@ func (th *testHandler) Get(job rest.Job) (bool, error) {
 }
 
 func (th *testHandler) testDecode(job rest.Job) (bool, error) {
-	jwtOut, err := jwt.DecodeFromJob(job)
+	decode := func() (jwt.JWT, error) {
+		if th.cache == nil {
+			return jwt.DecodeFromJob(job)
+		}
+		return jwt.DecodeCachedFromJob(job, th.cache)
+	}
+	jwtOut, err := decode()
 	th.assert.Nil(err)
 	th.assert.True(jwtOut.IsValid(time.Minute))
 	subject, ok := jwtOut.Claims().Subject()
@@ -131,7 +184,13 @@ func (th *testHandler) testDecode(job rest.Job) (bool, error) {
 }
 
 func (th *testHandler) testVerify(job rest.Job) (bool, error) {
-	jwtOut, err := jwt.VerifyFromJob(job, th.key)
+	verify := func() (jwt.JWT, error) {
+		if th.cache == nil {
+			return jwt.VerifyFromJob(job, th.key)
+		}
+		return jwt.VerifyCachedFromJob(job, th.cache, th.key)
+	}
+	jwtOut, err := verify()
 	th.assert.Nil(err)
 	th.assert.True(jwtOut.IsValid(time.Minute))
 	subject, ok := jwtOut.Claims().Subject()
