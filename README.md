@@ -13,7 +13,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.0.0 beta 2016-09-13
+Version 2.0.0 beta 2016-09-14
 
 ## Packages
 
