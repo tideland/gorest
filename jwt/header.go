@@ -19,47 +19,33 @@ import (
 )
 
 //--------------------
-// REQUEST HANDLING
+// JOB AND REQUEST HANDLING
 //--------------------
 
-// DecodeFromJob retrieves a possible JWT from the request
-// inside a REST job. The JWT is only decoded.
+// DecodeFromJob retrieves a possible JWT from
+// the request inside a REST job. The JWT is only decoded.
 func DecodeFromJob(job rest.Job) (JWT, error) {
-	return DecodeFromRequest(job.Request())
+	return retrieveFromJob(job, nil, nil)
 }
 
-// DecodeFromRequest retrieves a possible JWT from a
-// HTTP request. The JWT is only decoded.
-func DecodeFromRequest(req *http.Request) (JWT, error) {
-	authorization := req.Header.Get("Authorization")
-	if authorization == "" {
-		return nil, nil
-	}
-	fields := strings.Fields(authorization)
-	if len(fields) != 2 || fields[0] != "Bearer" {
-		return nil, nil
-	}
-	return Decode(fields[1])
+// DecodeCachedFromJob retrieves a possible JWT from the request
+// inside a REST job and checks if it already is cached. The JWT is
+// only decoded. In case of no error the token is added to the cache.
+func DecodeCachedFromJob(job rest.Job, cache Cache) (JWT, error) {
+	return retrieveFromJob(job, cache, nil)
 }
 
 // VerifyFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is verified.
 func VerifyFromJob(job rest.Job, key Key) (JWT, error) {
-	return VerifyFromRequest(job.Request(), key)
+	return retrieveFromJob(job, nil, key)
 }
 
-// VerifyFromRequest retrieves a possible JWT from a
-// HTTP request. The JWT is verified.
-func VerifyFromRequest(req *http.Request, key Key) (JWT, error) {
-	authorization := req.Header.Get("Authorization")
-	if authorization == "" {
-		return nil, nil
-	}
-	fields := strings.Fields(authorization)
-	if len(fields) != 2 || fields[0] != "Bearer" {
-		return nil, nil
-	}
-	return Verify(fields[1], key)
+// VerifyCachedFromJob retrieves a possible JWT from the request
+// inside a REST job and checks if it already is cached. The JWT is
+// verified. In case of no error the token is added to the cache.
+func VerifyCachedFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
+	return retrieveFromJob(job, cache, key)
 }
 
 // AddTokenToRequest adds a token as header to a request for
@@ -67,6 +53,47 @@ func VerifyFromRequest(req *http.Request, key Key) (JWT, error) {
 func AddTokenToRequest(req *http.Request, jwt JWT) *http.Request {
 	req.Header.Add("Authorization", "Bearer "+jwt.String())
 	return req
+}
+
+//--------------------
+// PRIVATE HELPERS
+//--------------------
+
+// retrieveFromJob is the generic retrieval function with possible
+// caching and verifaction.
+func retrieveFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
+	// Retrieve token from header.
+	authorization := job.Request().Header.Get("Authorization")
+	if authorization == "" {
+		return nil, nil
+	}
+	fields := strings.Fields(authorization)
+	if len(fields) != 2 || fields[0] != "Bearer" {
+		return nil, nil
+	}
+	// Check cache.
+	if cache != nil {
+		jwt, ok := cache.Get(fields[1])
+		if ok {
+			return jwt, nil
+		}
+	}
+	// Decode or verify.
+	var jwt JWT
+	var err error
+	if key == nil {
+		jwt, err = Decode(fields[1])
+	} else {
+		jwt, err = Verify(fields[1], key)
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Add to cache and return.
+	if cache != nil {
+		cache.Put(jwt)
+	}
+	return jwt, nil
 }
 
 // EOF
