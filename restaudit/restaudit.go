@@ -42,6 +42,7 @@ type Request struct {
 
 // Response wraps all infos of a test response.
 type Response struct {
+	Status  int
 	Header  KeyValues
 	Cookies KeyValues
 	Body    []byte
@@ -149,6 +150,7 @@ func (ts *testServer) response(hr *http.Response) *Response {
 	ts.assert.Nil(err, "cannot read response")
 	defer hr.Body.Close()
 	return &Response{
+		Status:  hr.StatusCode,
 		Header:  respHeader,
 		Cookies: respCookies,
 		Body:    respBody,

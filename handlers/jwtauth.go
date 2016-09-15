@@ -12,6 +12,7 @@ package handlers
 //--------------------
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/tideland/gorest/jwt"
@@ -22,25 +23,49 @@ import (
 // JWT AUTHORIZATION HANDLER
 //--------------------
 
-// GatekeeperFunc has to be defined by the handler user to check if the
-// claims contain the required authorization information. In case it doesn't
-// the function has to return false.
-type GatekeeperFunc func(job rest.Job, claims jwt.Claims) (bool, error)
+// JWTAuthorizationConfig allows to control how the JWT authorization
+// handler works. All values are optional. In this case tokens are only
+// decoded without using a cache, validated for the time, and there's
+// no user defined gatekeeper function running afterwards.
+type JWTAuthorizationConfig struct {
+	Cache      jwt.Cache
+	Key        jwt.Key
+	Leeway     time.Duration
+	Gatekeeper func(job rest.Job, claims jwt.Claims) (bool, error)
+}
 
 // jwtAuthorizationHandler checks for a valid token and then runs
 // a gatekeeper function.
 type jwtAuthorizationHandler struct {
 	id         string
+	cache      jwt.Cache
 	key        jwt.Key
-	gatekeeper GatekeeperFunc
+	leeway     time.Duration
+	gatekeeper func(job rest.Job, claims jwt.Claims) (bool, error)
 }
 
 // NewJWTAuthorizationHandler creates a handler checking for a valid JSON
-// Web Token in each request. In case the request has one the configured
-// gatekeeper function will be called with job and claims for further
-// validation.
-func NewjwtAuthorizationHandler(id string, key jwt.Key, gf GatekeeperFunc) rest.ResourceHandler {
-	return &jwtAuthorizationHandler{id, key, gf}
+// Web Token in each request.
+func NewJWTAuthorizationHandler(id string, config *JWTAuthorizationConfig) rest.ResourceHandler {
+	h := &jwtAuthorizationHandler{
+		id:     id,
+		leeway: time.Minute,
+	}
+	if config != nil {
+		if config.Cache != nil {
+			h.cache = config.Cache
+		}
+		if config.Key != nil {
+			h.key = config.Key
+		}
+		if config.Leeway != 0 {
+			h.leeway = config.Leeway
+		}
+		if config.Gatekeeper != nil {
+			h.gatekeeper = config.Gatekeeper
+		}
+	}
+	return h
 }
 
 // ID is specified on the ResourceHandler interface.
@@ -90,26 +115,46 @@ func (h *jwtAuthorizationHandler) Options(job rest.Job) (bool, error) {
 
 // check is used by all methods to check the token.
 func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
-	token, err := jwt.VerifyFromJob(job, h.key)
+	var jobJWT jwt.JWT
+	var err error
+	switch {
+	case h.cache != nil && h.key != nil:
+		jobJWT, err = jwt.VerifyCachedFromJob(job, h.cache, h.key)
+	case h.cache != nil && h.key == nil:
+		jobJWT, err = jwt.DecodeCachedFromJob(job, h.cache)
+	case h.cache == nil && h.key != nil:
+		jobJWT, err = jwt.VerifyFromJob(job, h.key)
+	default:
+		jobJWT, err = jwt.DecodeFromJob(job)
+	}
 	if err != nil {
 		return false, h.deny(job, err.Error())
 	}
-	if !token.IsValid(time.Minute) {
-		// TODO Configurable leeway.
-		return false, h.deny(job, "invalid JSON web token")
+	if jobJWT == nil {
+		return false, h.deny(job, "no JSON Web Token")
 	}
-	return h.gatekeeper(job, token.Claims())
+	if !jobJWT.IsValid(h.leeway) {
+		return false, h.deny(job, "invalid JSON Web Token")
+	}
+	if h.gatekeeper != nil {
+		return h.gatekeeper(job, jobJWT.Claims())
+	}
+	return true, nil
 }
 
 // deny sends a negative feedback to the caller.
 func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
-	var f rest.Formatter
-	if job.AcceptsContentType(rest.ContentTypeJSON) {
-		f = job.JSON(true)
-	} else {
-		f = job.XML()
+	job.ResponseWriter().WriteHeader(http.StatusUnauthorized)
+	switch {
+	case job.AcceptsContentType(rest.ContentTypeJSON):
+		return rest.NegativeFeedback(job.JSON(true), msg)
+	case job.AcceptsContentType(rest.ContentTypeXML):
+		return rest.NegativeFeedback(job.XML(), msg)
+	default:
+		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypePlain)
+		job.ResponseWriter().Write([]byte(msg))
+		return nil
 	}
-	return rest.NegativeFeedback(f, msg)
 }
 
 // EOF

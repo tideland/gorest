@@ -111,4 +111,37 @@ func TestFileUploadHandler(t *testing.T) {
 	ts.DoUpload("/test/files", "testfile", "test.txt", data)
 }
 
+// TestJWTAuthorizationHandler tests the authorization process
+// using JSON Web Tokens.
+func TestJWTAuthorizationHandler(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	tests := []struct {
+		id     string
+		config *handlers.JWTAuthorizationConfig
+		status int
+		body   string
+	}{
+		{
+			id:     "no-jwt",
+			status: 401,
+		},
+	}
+	// Run defined tests.
+	mux := rest.NewMultiplexer()
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	for i, test := range tests {
+		// Prepare one test.
+		assert.Logf("JWT test #%d: %s", i, test.id)
+		err := mux.Register("jwt", test.id, handlers.NewJWTAuthorizationHandler(test.id, test.config))
+		assert.Nil(err)
+		// Make request.
+		resp := ts.DoRequest(&restaudit.Request{
+			Method: "GET",
+			Path:   "/jwt/" + test.id + "/1234567890",
+		})
+		assert.Equal(resp.Status, test.status)
+	}
+}
+
 // EOF
