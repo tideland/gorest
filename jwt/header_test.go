@@ -130,6 +130,48 @@ func TestVerifyRequest(t *testing.T) {
 	assert.Equal(claimsOut, claimsIn)
 }
 
+// TestVerifyCachedRequest tests the verification of a token
+// in a handler including usage of the cache.
+func TestVerifyCachedRequest(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing verify a request token using a cache")
+	key := []byte("secret")
+	claimsIn := initClaims()
+	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
+	assert.Nil(err)
+	// Setup the test server.
+	mux := rest.NewMultiplexer()
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, true))
+	assert.Nil(err)
+	// Perform first test request.
+	resp := ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/test/jwt/1234567890",
+		Header: restaudit.KeyValues{"Accept": "application/json"},
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
+		},
+	})
+	var claimsOut jwt.Claims
+	err = json.Unmarshal(resp.Body, &claimsOut)
+	assert.Nil(err)
+	assert.Equal(claimsOut, claimsIn)
+	// Perform second test request.
+	resp = ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/test/jwt/1234567890",
+		Header: restaudit.KeyValues{"Accept": "application/json"},
+		RequestProcessor: func(req *http.Request) *http.Request {
+			return jwt.AddTokenToRequest(req, jwtIn)
+		},
+	})
+	err = json.Unmarshal(resp.Body, &claimsOut)
+	assert.Nil(err)
+	assert.Equal(claimsOut, claimsIn)
+}
+
 //--------------------
 // HANDLER
 //--------------------
