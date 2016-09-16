@@ -19,10 +19,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/tideland/golib/audit"
 
 	"github.com/tideland/gorest/handlers"
+	"github.com/tideland/gorest/jwt"
 	"github.com/tideland/gorest/rest"
 	"github.com/tideland/gorest/restaudit"
 )
@@ -115,14 +117,37 @@ func TestFileUploadHandler(t *testing.T) {
 // using JSON Web Tokens.
 func TestJWTAuthorizationHandler(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
+	key := []byte("secret")
 	tests := []struct {
-		id     string
-		config *handlers.JWTAuthorizationConfig
-		status int
-		body   string
+		id      string
+		tokener func() jwt.JWT
+		config  *handlers.JWTAuthorizationConfig
+		status  int
+		body    string
 	}{
 		{
-			id:     "no-jwt",
+			id:     "no-token",
+			status: 401,
+		}, {
+			id: "token-no-gatekeeper",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
+			status: 200,
+		}, {
+			id: "token-expired",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				claims.SetExpiration(time.Now().Add(-time.Hour))
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
 			status: 401,
 		},
 	}
@@ -136,9 +161,16 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		err := mux.Register("jwt", test.id, handlers.NewJWTAuthorizationHandler(test.id, test.config))
 		assert.Nil(err)
 		// Make request.
+		var requestProcessor func(req *http.Request) *http.Request
+		if test.tokener != nil {
+			requestProcessor = func(req *http.Request) *http.Request {
+				return jwt.AddTokenToRequest(req, test.tokener())
+			}
+		}
 		resp := ts.DoRequest(&restaudit.Request{
-			Method: "GET",
-			Path:   "/jwt/" + test.id + "/1234567890",
+			Method:           "GET",
+			Path:             "/jwt/" + test.id + "/1234567890",
+			RequestProcessor: requestProcessor,
 		})
 		assert.Equal(resp.Status, test.status)
 	}
