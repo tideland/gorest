@@ -129,13 +129,26 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			id:     "no-token",
 			status: 401,
 		}, {
-			id: "token-no-gatekeeper",
+			id: "token-decode-no-gatekeeper",
 			tokener: func() jwt.JWT {
 				claims := jwt.NewClaims()
 				claims.SetSubject("test")
 				out, err := jwt.Encode(claims, key, jwt.HS512)
 				assert.Nil(err)
 				return out
+			},
+			status: 200,
+		}, {
+			id: "token-verify-no-gatekeeper",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
+			config: &handlers.JWTAuthorizationConfig{
+				Key: key,
 			},
 			status: 200,
 		}, {
