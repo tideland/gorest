@@ -122,6 +122,7 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		id      string
 		tokener func() jwt.JWT
 		config  *handlers.JWTAuthorizationConfig
+		runs    int
 		status  int
 		body    string
 	}{
@@ -152,6 +153,21 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			},
 			status: 200,
 		}, {
+			id: "cached-token-verify-no-gatekeeper",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
+			config: &handlers.JWTAuthorizationConfig{
+				Cache: jwt.NewCache(time.Minute, time.Minute, time.Minute, 10),
+				Key:   key,
+			},
+			runs:   5,
+			status: 200,
+		}, {
 			id: "token-expired",
 			tokener: func() jwt.JWT {
 				claims := jwt.NewClaims()
@@ -173,19 +189,25 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		assert.Logf("JWT test #%d: %s", i, test.id)
 		err := mux.Register("jwt", test.id, handlers.NewJWTAuthorizationHandler(test.id, test.config))
 		assert.Nil(err)
-		// Make request.
 		var requestProcessor func(req *http.Request) *http.Request
 		if test.tokener != nil {
 			requestProcessor = func(req *http.Request) *http.Request {
 				return jwt.AddTokenToRequest(req, test.tokener())
 			}
 		}
-		resp := ts.DoRequest(&restaudit.Request{
-			Method:           "GET",
-			Path:             "/jwt/" + test.id + "/1234567890",
-			RequestProcessor: requestProcessor,
-		})
-		assert.Equal(resp.Status, test.status)
+		// Make request(s).
+		runs := 1
+		if test.runs != 0 {
+			runs = test.runs
+		}
+		for i := 0; i < runs; i++ {
+			resp := ts.DoRequest(&restaudit.Request{
+				Method:           "GET",
+				Path:             "/jwt/" + test.id + "/1234567890",
+				RequestProcessor: requestProcessor,
+			})
+			assert.Equal(resp.Status, test.status)
+		}
 	}
 }
 
