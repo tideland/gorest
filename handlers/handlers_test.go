@@ -13,6 +13,7 @@ package handlers_test
 
 import (
 	"bufio"
+	"errors"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -167,6 +168,47 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			},
 			runs:   5,
 			status: 200,
+		}, {
+			id: "cached-token-verify-positive-gatekeeper",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
+			config: &handlers.JWTAuthorizationConfig{
+				Cache: jwt.NewCache(time.Minute, time.Minute, time.Minute, 10),
+				Key:   key,
+				Gatekeeper: func(job rest.Job, claims jwt.Claims) error {
+					subject, ok := claims.Subject()
+					assert.True(ok)
+					assert.Equal(subject, "test")
+					return nil
+				},
+			},
+			runs:   5,
+			status: 200,
+		}, {
+			id: "cached-token-verify-negative-gatekeeper",
+			tokener: func() jwt.JWT {
+				claims := jwt.NewClaims()
+				claims.SetSubject("test")
+				out, err := jwt.Encode(claims, key, jwt.HS512)
+				assert.Nil(err)
+				return out
+			},
+			config: &handlers.JWTAuthorizationConfig{
+				Cache: jwt.NewCache(time.Minute, time.Minute, time.Minute, 10),
+				Key:   key,
+				Gatekeeper: func(job rest.Job, claims jwt.Claims) error {
+					_, ok := claims.Subject()
+					assert.True(ok)
+					return errors.New("subject is test")
+				},
+			},
+			runs:   1,
+			status: 401,
 		}, {
 			id: "token-expired",
 			tokener: func() jwt.JWT {
