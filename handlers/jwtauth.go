@@ -31,7 +31,7 @@ type JWTAuthorizationConfig struct {
 	Cache      jwt.Cache
 	Key        jwt.Key
 	Leeway     time.Duration
-	Gatekeeper func(job rest.Job, claims jwt.Claims) (bool, error)
+	Gatekeeper func(job rest.Job, claims jwt.Claims) error
 }
 
 // jwtAuthorizationHandler checks for a valid token and then runs
@@ -41,7 +41,7 @@ type jwtAuthorizationHandler struct {
 	cache      jwt.Cache
 	key        jwt.Key
 	leeway     time.Duration
-	gatekeeper func(job rest.Job, claims jwt.Claims) (bool, error)
+	gatekeeper func(job rest.Job, claims jwt.Claims) error
 }
 
 // NewJWTAuthorizationHandler creates a handler checking for a valid JSON
@@ -137,7 +137,10 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 		return false, h.deny(job, "invalid JSON Web Token")
 	}
 	if h.gatekeeper != nil {
-		return h.gatekeeper(job, jobJWT.Claims())
+		err := h.gatekeeper(job, jobJWT.Claims())
+		if err != nil {
+			return false, h.deny(job, "gatekeeper denied:"+err.Error())
+		}
 	}
 	return true, nil
 }
