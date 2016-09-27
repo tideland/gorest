@@ -66,6 +66,12 @@ type TemplatesCache interface {
 	// Render executes the pre-parsed template with the data.
 	// It also sets the content type header.
 	Render(rw http.ResponseWriter, id string, data interface{}) error
+
+	// LoadAndRender checks if the template with the given id
+	// has already been parsed. In this case it will use it,
+	// otherwise the template will be loaded, parsed, added
+	// to the cache, and used then.
+	LoadAndRender(rw http.ResponseWriter, id, filename, contentType string, data interface{}) error
 }
 
 // templates implements the TemplatesCache interface.
@@ -81,7 +87,7 @@ func NewTemplatesCache() TemplatesCache {
 	}
 }
 
-// Parse is specified on the Templates interface.
+// Parse impements the TemplatesCache interface.
 func (t *templates) Parse(id, rawTemplate, contentType string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -93,7 +99,7 @@ func (t *templates) Parse(id, rawTemplate, contentType string) error {
 	return nil
 }
 
-// LoadAndParse is specified on the Templates interface.
+// LoadAndParse implements the TemplatesCache interface.
 func (t *templates) LoadAndParse(id, filename, contentType string) error {
 	rawTemplate, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -102,7 +108,7 @@ func (t *templates) LoadAndParse(id, filename, contentType string) error {
 	return t.Parse(id, string(rawTemplate), contentType)
 }
 
-// Render is specified on the Templates interface.
+// Render implements the TemplatesCache interface.
 func (t *templates) Render(rw http.ResponseWriter, id string, data interface{}) error {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
@@ -111,6 +117,19 @@ func (t *templates) Render(rw http.ResponseWriter, id string, data interface{}) 
 		return errors.New(ErrNoCachedTemplate, errorMessages, id)
 	}
 	return entry.render(rw, data)
+}
+
+// LoadAndRender implements the TemplatesCache interface.
+func (t *templates) LoadAndRender(rw http.ResponseWriter, id, filename, contentType string, data interface{}) error {
+	t.mutex.RLock()
+	_, ok := t.items[id]
+	t.mutex.RUnlock()
+	if !ok {
+		if err := t.LoadAndParse(id, filename, contentType); err != nil {
+			return err
+		}
+	}
+	return t.Render(rw, id, data)
 }
 
 // EOF
