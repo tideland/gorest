@@ -3,6 +3,7 @@
 ## 2016-09-27
 
 - Added methods for the lazy loading and rendering of templates
+- Sadly has little impact on the rendering interface
 
 ## 2016-09-19
 
