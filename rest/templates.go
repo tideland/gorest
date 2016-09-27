@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - REST - Templates
+// Tideland Go REST Server Library - REST - templatesCache
 //
 // Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
 //
@@ -22,12 +22,12 @@ import (
 )
 
 //--------------------
-// TEMPLATE CACHE ITEM
+// templatesCache CACHE ITEM
 //--------------------
 
-// templatesItem stores the parsed template and the
+// templatesCacheItem stores the parsed template and the
 // content type.
-type templatesItem struct {
+type templatesCacheItem struct {
 	id             string
 	timestamp      time.Time
 	parsedTemplate *template.Template
@@ -36,12 +36,12 @@ type templatesItem struct {
 
 // isValid checks if the the entry is younger than the
 // passed validity period.
-func (ti *templatesItem) isValid(validityPeriod time.Duration) bool {
+func (ti *templatesCacheItem) isValid(validityPeriod time.Duration) bool {
 	return ti.timestamp.Add(validityPeriod).After(time.Now())
 }
 
 // render the cached entry.
-func (ti *templatesItem) render(rw http.ResponseWriter, data interface{}) error {
+func (ti *templatesCacheItem) render(rw http.ResponseWriter, data interface{}) error {
 	rw.Header().Set("Content-Type", ti.contentType)
 	if err := ti.parsedTemplate.Execute(rw, data); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -51,7 +51,7 @@ func (ti *templatesItem) render(rw http.ResponseWriter, data interface{}) error 
 }
 
 //--------------------
-// TEMPLATE CACHE
+// TEMPLATES CACHE
 //--------------------
 
 // TemplatesCache caches and renders templates.
@@ -74,33 +74,33 @@ type TemplatesCache interface {
 	LoadAndRender(rw http.ResponseWriter, id, filename, contentType string, data interface{}) error
 }
 
-// templates implements the TemplatesCache interface.
-type templates struct {
+// templatesCache implements the TemplatesCache interface.
+type templatesCache struct {
 	mutex sync.RWMutex
-	items map[string]*templatesItem
+	items map[string]*templatesCacheItem
 }
 
 // NewTemplates creates a new template cache.
 func NewTemplatesCache() TemplatesCache {
-	return &templates{
-		items: make(map[string]*templatesItem),
+	return &templatesCache{
+		items: make(map[string]*templatesCacheItem),
 	}
 }
 
 // Parse impements the TemplatesCache interface.
-func (t *templates) Parse(id, rawTemplate, contentType string) error {
+func (t *templatesCache) Parse(id, rawTemplate, contentType string) error {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 	parsedTemplate, err := template.New(id).Parse(rawTemplate)
 	if err != nil {
 		return err
 	}
-	t.items[id] = &templatesItem{id, time.Now(), parsedTemplate, contentType}
+	t.items[id] = &templatesCacheItem{id, time.Now(), parsedTemplate, contentType}
 	return nil
 }
 
 // LoadAndParse implements the TemplatesCache interface.
-func (t *templates) LoadAndParse(id, filename, contentType string) error {
+func (t *templatesCache) LoadAndParse(id, filename, contentType string) error {
 	rawTemplate, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func (t *templates) LoadAndParse(id, filename, contentType string) error {
 }
 
 // Render implements the TemplatesCache interface.
-func (t *templates) Render(rw http.ResponseWriter, id string, data interface{}) error {
+func (t *templatesCache) Render(rw http.ResponseWriter, id string, data interface{}) error {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 	entry, ok := t.items[id]
@@ -120,7 +120,7 @@ func (t *templates) Render(rw http.ResponseWriter, id string, data interface{}) 
 }
 
 // LoadAndRender implements the TemplatesCache interface.
-func (t *templates) LoadAndRender(rw http.ResponseWriter, id, filename, contentType string, data interface{}) error {
+func (t *templatesCache) LoadAndRender(rw http.ResponseWriter, id, filename, contentType string, data interface{}) error {
 	t.mutex.RLock()
 	_, ok := t.items[id]
 	t.mutex.RUnlock()
@@ -130,6 +130,40 @@ func (t *templates) LoadAndRender(rw http.ResponseWriter, id, filename, contentT
 		}
 	}
 	return t.Render(rw, id, data)
+}
+
+//--------------------
+// RENDERER
+//--------------------
+
+// Renderer renders templates. It is returned by a Job and knows
+// where to render it.
+type Renderer interface {
+	// Render executes the pre-parsed template with the data.
+	// It also sets the content type header.
+	Render(id string, data interface{}) error
+
+	// LoadAndRender checks if the template with the given id
+	// has already been parsed. In this case it will use it,
+	// otherwise the template will be loaded, parsed, added
+	// to the cache, and used then.
+	LoadAndRender(id, filename, contentType string, data interface{}) error
+}
+
+// renderer implements the Renderer interface.
+type renderer struct {
+	rw http.ResponseWriter
+	tc TemplatesCache
+}
+
+// Render implements the Renderer interface.
+func (r *renderer) Render(id string, data interface{}) error {
+	return r.tc.Render(r.rw, id, data)
+}
+
+// LoadAndRender implements the Renderer interface.
+func (r *renderer) LoadAndRender(id, filename, contentType string, data interface{}) error {
+	return r.tc.LoadAndRender(r.rw, id, filename, contentType, data)
 }
 
 // EOF

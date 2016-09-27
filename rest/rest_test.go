@@ -333,7 +333,7 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 		job.JSON(true).Write(data)
 	default:
 		th.assert.Logf("GET HTML")
-		job.RenderTemplate("test:context:html", data)
+		job.Renderer().Render("test:context:html", data)
 	}
 	return true, nil
 }
