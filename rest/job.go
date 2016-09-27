@@ -66,8 +66,13 @@ type Job interface {
 	// Redirect to a domain, resource and resource ID (optional).
 	Redirect(domain, resource, resourceID string)
 
-	// RenderTemplate renders a template with the passed data.
+	// RenderTemplate renders a cached template with the passed data.
 	RenderTemplate(templateID string, data interface{}) error
+
+	// LoadAndRenderTemplate lazy loads a template into the cache and renders
+	// it with the passed data. So in case it already has been loaded and
+	// parsed once it will be reused.
+	LoadAndRenderTemplate(templateID, filename, contentType string, data interface{}) error
 
 	// GOB returns a GOB formatter.
 	GOB() Formatter
@@ -226,6 +231,11 @@ func (j *job) Redirect(domain, resource, resourceID string) {
 // RenderTemplate is specified on the Job interface.
 func (j *job) RenderTemplate(templateID string, data interface{}) error {
 	return j.environment.Templates().Render(j.responseWriter, templateID, data)
+}
+
+// LoadAndRenderTemplate is specified on the Job interface.
+func (j *job) LoadAndRenderTemplate(templateID, filename, contentType string, data interface{}) error {
+	return j.environment.Templates().LoadAndRender(j.responseWriter, templateID, filename, contentType, data)
 }
 
 // GOB is specified on the Job interface.
