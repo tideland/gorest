@@ -32,32 +32,32 @@ const defaultMaxMemory = 32 << 20 // 32 MB
 // a database.
 type FileUploadProcessor func(job rest.Job, header *multipart.FileHeader, file multipart.File) error
 
-// FileUploadHandler handles uploading POST requests.
-type FileUploadHandler struct {
+// fileUploadHandler handles uploading POST requests.
+type fileUploadHandler struct {
 	id        string
 	processor FileUploadProcessor
 }
 
 // NewFileUploadHandler creates a new handler for the uploading of files.
 func NewFileUploadHandler(id string, processor FileUploadProcessor) rest.ResourceHandler {
-	return &FileUploadHandler{
+	return &fileUploadHandler{
 		id:        id,
 		processor: processor,
 	}
 }
 
 // Init is specified on the ResourceHandler interface.
-func (h *FileUploadHandler) ID() string {
+func (h *fileUploadHandler) ID() string {
 	return h.id
 }
 
 // ID is specified on the ResourceHandler interface.
-func (h *FileUploadHandler) Init(env rest.Environment, domain, resource string) error {
+func (h *fileUploadHandler) Init(env rest.Environment, domain, resource string) error {
 	return nil
 }
 
 // Post is specified on the PostResourceHandler interface.
-func (h *FileUploadHandler) Post(job rest.Job) (bool, error) {
+func (h *fileUploadHandler) Post(job rest.Job) (bool, error) {
 	if err := job.Request().ParseMultipartForm(defaultMaxMemory); err != nil {
 		return false, errors.Annotate(err, ErrUploadingFile, errorMessages)
 	}

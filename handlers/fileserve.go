@@ -25,34 +25,34 @@ import (
 // FILE SERVER HANDLER
 //--------------------
 
-// FileServeHandler serves files identified by the resource ID part out
-// of the configured local directory.
-type FileServeHandler struct {
+// fileServeHandler implements the file server.
+type fileServeHandler struct {
 	id  string
 	dir string
 }
 
-// NewFileServeHandler creates a new handler with a directory.
+// NewFileServeHandler creates a new handler serving the files names
+// by the resource ID part out of the passed directory.
 func NewFileServeHandler(id, dir string) rest.ResourceHandler {
 	pdir := filepath.FromSlash(dir)
 	if !strings.HasSuffix(pdir, string(filepath.Separator)) {
 		pdir += string(filepath.Separator)
 	}
-	return &FileServeHandler{id, pdir}
+	return &fileServeHandler{id, pdir}
 }
 
 // ID is specified on the ResourceHandler interface.
-func (h *FileServeHandler) ID() string {
+func (h *fileServeHandler) ID() string {
 	return h.id
 }
 
 // Init is specified on the ResourceHandler interface.
-func (h *FileServeHandler) Init(env rest.Environment, domain, resource string) error {
+func (h *fileServeHandler) Init(env rest.Environment, domain, resource string) error {
 	return nil
 }
 
 // Get is specified on the GetResourceHandler interface.
-func (h *FileServeHandler) Get(job rest.Job) (bool, error) {
+func (h *fileServeHandler) Get(job rest.Job) (bool, error) {
 	filename := h.dir + job.ResourceID()
 	logger.Infof("serving file %q", filename)
 	http.ServeFile(job.ResponseWriter(), job.Request(), filename)

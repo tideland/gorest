@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-09-29
+
+- Fixed bug with public handler types
+
 ## 2016-09-27
 
 - Added methods for the lazy loading and rendering of templates
