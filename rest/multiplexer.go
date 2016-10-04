@@ -12,10 +12,12 @@ package rest
 //--------------------
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
 
+	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
 	"github.com/tideland/golib/monitoring"
 )
@@ -56,14 +58,26 @@ type Multiplexer interface {
 // multiplexer implements the Multiplexer interface.
 type multiplexer struct {
 	mutex       sync.RWMutex
-	environment Environment
+	environment *environment
 	mapping     *mapping
 }
 
-// NewMultiplexer creates a new HTTP multiplexer.
-func NewMultiplexer(options ...Option) Multiplexer {
+// NewMultiplexer creates a new HTTP multiplexer. The passed context
+// will be  used if a handler requests a context from a job, the
+// configuration allows to configure the multiplexer. The allowed
+// parameters are
+//
+//     {etc
+//         {basepath /}
+//         {default-domain default}
+//         {default-resource default}
+//     }
+//
+// The values shown here are the default values if the configuration
+// is nil or missing these settings.
+func NewMultiplexer(ctx context.Context, cfg etc.Etc) Multiplexer {
 	return &multiplexer{
-		environment: newEnvironment(options...),
+		environment: newEnvironment(ctx, cfg),
 		mapping:     newMapping(),
 	}
 }

@@ -67,14 +67,24 @@
 // the Handler interface of the net/http package. So the typical order
 // is
 //
-//     mux := rest.NewMultiplexer()
+//     mux := rest.NewMultiplexer(ctx, cfg)
+//
+// to start the multiplexer with a given context and the configuration
+// for the multiplexer. The configuration is using the Tideland Go
+// Library etc.Etc, parameters can be found at the NewMultiplexer
+// documentation. After creating the multiplexer call
+//
 //     mux.Register("domain", "resource-type-a", NewTypeAHandler("foo"))
 //     mux.Register("domain", "resource-type-b", NewTypeBHandler("bar"))
 //     mux.Register("admin", "user", NewUserManagementHandler())
+//
+// to register the handlers per domain and resource. The server then can
+// be started by the standard
+//
 //     http.ListenAndServe(":8000", mux)
 //
-// Additionally further handlers can be registered or running once
-// removed during runtime.
+// Additionally further handlers can be registered or running ones
+// removed during the runtime.
 package rest
 
 //--------------------
@@ -91,7 +101,7 @@ import (
 
 // PackageVersion returns the version of the version package.
 func PackageVersion() version.Version {
-	return version.New(2, 1, 1)
+	return version.New(2, 2, 0)
 }
 
 // EOF
