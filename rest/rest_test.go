@@ -13,12 +13,14 @@ package rest_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"encoding/json"
 	"encoding/xml"
 	"testing"
 
 	"github.com/tideland/golib/audit"
+	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
 
 	"github.com/tideland/gorest/rest"
@@ -41,7 +43,7 @@ func init() {
 func TestGetJSON(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
@@ -49,30 +51,31 @@ func TestGetJSON(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/test/json/4711",
+		Path:   "/base/test/json/4711",
 		Header: restaudit.KeyValues{"Accept": "application/json"},
 	})
 	var data TestRequestData
 	err = json.Unmarshal(resp.Body, &data)
 	assert.Nil(err)
 	assert.Equal(data.ResourceID, "4711")
+	assert.Equal(data.Context, "foo")
 }
 
 // TestPutJSON tests the PUT command with a JSON payload and result.
 func TestPutJSON(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	reqData := TestRequestData{"foo", "bar", "4711"}
+	reqData := TestRequestData{"foo", "bar", "4711", ""}
 	reqBuf, _ := json.Marshal(reqData)
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "PUT",
-		Path:   "/test/json/4711",
+		Path:   "/base/test/json/4711",
 		Header: restaudit.KeyValues{"Content-Type": "application/json", "Accept": "application/json"},
 		Body:   reqBuf,
 	})
@@ -86,7 +89,7 @@ func TestPutJSON(t *testing.T) {
 func TestGetXML(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
@@ -94,7 +97,7 @@ func TestGetXML(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/test/xml/4711",
+		Path:   "/base/test/xml/4711",
 		Header: restaudit.KeyValues{"Accept": "application/xml"},
 	})
 	assert.Substring("<ResourceID>4711</ResourceID>", string(resp.Body))
@@ -104,17 +107,17 @@ func TestGetXML(t *testing.T) {
 func TestPutXML(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	reqData := TestRequestData{"foo", "bar", "4711"}
+	reqData := TestRequestData{"foo", "bar", "4711", ""}
 	reqBuf, _ := xml.Marshal(reqData)
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "PUT",
-		Path:   "/test/xml/4711",
+		Path:   "/base/test/xml/4711",
 		Header: restaudit.KeyValues{"Content-Type": "application/xml", "Accept": "application/xml"},
 		Body:   reqBuf,
 	})
@@ -128,7 +131,7 @@ func TestPutXML(t *testing.T) {
 func TestPutGOB(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "gob", NewTestHandler("putgob", assert))
@@ -138,10 +141,9 @@ func TestPutGOB(t *testing.T) {
 	reqBuf := new(bytes.Buffer)
 	err = gob.NewEncoder(reqBuf).Encode(reqData)
 	assert.Nil(err, "GOB encode.")
-	assert.Logf("%q", reqBuf.String())
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "POST",
-		Path:   "/test/gob",
+		Path:   "/base/test/gob",
 		Header: restaudit.KeyValues{"Content-Type": "application/vnd.tideland.gob"},
 		Body:   reqBuf.Bytes(),
 	})
@@ -156,7 +158,7 @@ func TestPutGOB(t *testing.T) {
 func TestLongPath(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("content", "blog", NewTestHandler("default", assert))
@@ -164,7 +166,7 @@ func TestLongPath(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/content/blog/2014/09/30/just-a-test",
+		Path:   "/base/content/blog/2014/09/30/just-a-test",
 	})
 	assert.Substring("<li>Resource ID: 2014/09/30/just-a-test</li>", string(resp.Body))
 }
@@ -173,15 +175,15 @@ func TestLongPath(t *testing.T) {
 func TestFallbackDefault(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err := mux.Register("default", "default", NewTestHandler("default", assert))
+	err := mux.Register("testing", "index", NewTestHandler("default", assert))
 	assert.Nil(err)
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/x/y",
+		Path:   "/base/x/y",
 	})
 	assert.Substring("<li>Resource: y</li>", string(resp.Body))
 }
@@ -190,7 +192,7 @@ func TestFallbackDefault(t *testing.T) {
 func TestHandlerStack(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.RegisterAll(rest.Registrations{
@@ -202,20 +204,20 @@ func TestHandlerStack(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/test/stack",
+		Path:   "/base/test/stack",
 	})
 	token := resp.Header["Token"]
 	assert.Equal(token, "foo")
 	assert.Substring("<li>Resource: token</li>", string(resp.Body))
 	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/test/stack",
+		Path:   "/base/test/stack",
 		Header: restaudit.KeyValues{"token": "foo"},
 	})
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
 	resp = ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/test/stack",
+		Path:   "/base/test/stack",
 		Header: restaudit.KeyValues{"token": "foo"},
 	})
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
@@ -225,7 +227,7 @@ func TestHandlerStack(t *testing.T) {
 func TestMethodNotSupported(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "method", NewTestHandler("method", assert))
@@ -233,7 +235,7 @@ func TestMethodNotSupported(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "OPTION",
-		Path:   "/test/method",
+		Path:   "/base/test/method",
 	})
 	assert.Substring("OPTION", string(resp.Body))
 }
@@ -276,6 +278,7 @@ type TestRequestData struct {
 	Domain     string
 	Resource   string
 	ResourceID string
+	Context    string
 }
 
 type TestCounterData struct {
@@ -296,6 +299,7 @@ const testTemplateHTML = `
 <li>Domain: {{.Domain}}</li>
 <li>Resource: {{.Resource}}</li>
 <li>Resource ID: {{.ResourceID}}</li>
+<li>Context: {{.Context}}</li>
 </ul>
 </body>
 </html>
@@ -315,7 +319,7 @@ func (th *TestHandler) ID() string {
 }
 
 func (th *TestHandler) Init(env rest.Environment, domain, resource string) error {
-	env.Templates().Parse("test:context:html", testTemplateHTML, "text/html")
+	env.TemplatesCache().Parse("test:context:html", testTemplateHTML, "text/html")
 	return nil
 }
 
@@ -323,7 +327,8 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	if th.id == "auth:token" {
 		job.ResponseWriter().Header().Add("Token", "foo")
 	}
-	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID()}
+	ctxTest := job.Context().Value("test")
+	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID(), ctxTest.(string)}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeXML):
 		th.assert.Logf("GET XML")
@@ -377,6 +382,20 @@ func (th *TestHandler) Post(job rest.Job) (bool, error) {
 
 func (th *TestHandler) Delete(job rest.Job) (bool, error) {
 	return false, nil
+}
+
+//--------------------
+// HELPERS
+//--------------------
+
+// newMultiplexer creates a new multiplexer with a testing context
+// and a testing configuration.
+func newMultiplexer(assert audit.Assertion) rest.Multiplexer {
+	ctx := context.WithValue(context.Background(), "test", "foo")
+	cfgStr := "{etc {basepath /base/}{default-domain testing}{default-resource index}}"
+	cfg, err := etc.ReadString(cfgStr)
+	assert.Nil(err)
+	return rest.NewMultiplexer(ctx, cfg)
 }
 
 // EOF

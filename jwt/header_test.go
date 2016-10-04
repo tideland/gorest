@@ -12,12 +12,14 @@ package jwt_test
 //--------------------
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/tideland/golib/audit"
+	"github.com/tideland/golib/etc"
 
 	"github.com/tideland/gorest/jwt"
 	"github.com/tideland/gorest/rest"
@@ -38,7 +40,7 @@ func TestDecodeRequest(t *testing.T) {
 	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
 	assert.Nil(err)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
@@ -68,7 +70,7 @@ func TestDecodeCachedRequest(t *testing.T) {
 	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
 	assert.Nil(err)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, true))
@@ -110,7 +112,7 @@ func TestVerifyRequest(t *testing.T) {
 	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
 	assert.Nil(err)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, false))
@@ -140,7 +142,7 @@ func TestVerifyCachedRequest(t *testing.T) {
 	jwtIn, err := jwt.Encode(claimsIn, key, jwt.HS512)
 	assert.Nil(err)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, true))
@@ -240,6 +242,19 @@ func (th *testHandler) testVerify(job rest.Job) (bool, error) {
 	th.assert.Equal(subject, job.ResourceID())
 	job.JSON(true).Write(jwtOut.Claims())
 	return true, nil
+}
+
+//--------------------
+// HELPERS
+//--------------------
+
+// newMultiplexer creates a new multiplexer with a testing context
+// and a testing configuration.
+func newMultiplexer(assert audit.Assertion) rest.Multiplexer {
+	cfgStr := "{etc {basepath /}{default-domain default}{default-resource default}}"
+	cfg, err := etc.ReadString(cfgStr)
+	assert.Nil(err)
+	return rest.NewMultiplexer(context.Background(), cfg)
 }
 
 // EOF

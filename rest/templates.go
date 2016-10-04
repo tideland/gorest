@@ -80,8 +80,8 @@ type templatesCache struct {
 	items map[string]*templatesCacheItem
 }
 
-// NewTemplates creates a new template cache.
-func NewTemplatesCache() TemplatesCache {
+// newTemplatesCache creates a new template cache.
+func newTemplatesCache() *templatesCache {
 	return &templatesCache{
 		items: make(map[string]*templatesCacheItem),
 	}

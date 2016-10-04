@@ -11,15 +11,23 @@ package rest
 // IMPORTS
 //--------------------
 
-import ()
+import (
+	"context"
+
+	"github.com/tideland/golib/etc"
+	"github.com/tideland/golib/stringex"
+)
 
 //--------------------
 // ENVIRONMENT
 //--------------------
 
 type Environment interface {
-	// BasePath returns the configured base path.
-	BasePath() string
+	// Context returns the context of the environment.
+	Context() context.Context
+
+	// Basepath returns the configured basepath.
+	Basepath() string
 
 	// DefaultDomain returns the configured default domain.
 	DefaultDomain() string
@@ -27,114 +35,76 @@ type Environment interface {
 	// DefaultResource returns the configured default resource.
 	DefaultResource() string
 
-	// Templates returns the template cache.
-	Templates() TemplatesCache
+	// TemplatesCache returns the template cache.
+	TemplatesCache() TemplatesCache
 }
 
 // environment implements the Environment interface.
 type environment struct {
-	basePath        string
+	ctx             context.Context
+	basepath        string
+	baseparts       []string
+	basepartsLen    int
 	defaultDomain   string
 	defaultResource string
-	templates       TemplatesCache
+	templatesCache  TemplatesCache
 }
 
-// Option defines a function for setting an option.
-type Option func(env Environment)
-
-// newEnvironment crerates the default environment and
-// checks the passed options.
-func newEnvironment(options ...Option) Environment {
+// newEnvironment crerates an environment using the
+// passed context and configuration.
+func newEnvironment(ctx context.Context, cfg etc.Etc) *environment {
 	env := &environment{
-		basePath:        "/",
+		basepath:        "/",
+		baseparts:       []string{},
 		defaultDomain:   "default",
 		defaultResource: "default",
-		templates:       NewTemplatesCache(),
+		templatesCache:  newTemplatesCache(),
 	}
-	for _, option := range options {
-		option(env)
+	// Check configuration.
+	if cfg != nil {
+		env.basepath = cfg.ValueAsString("basepath", env.basepath)
+		env.defaultDomain = cfg.ValueAsString("default-domain", env.defaultDomain)
+		env.defaultResource = cfg.ValueAsString("default-resource", env.defaultResource)
 	}
+	// Check basepath and remove empty parts.
+	env.baseparts = stringex.SplitMap(env.basepath, "/", func(p string) (string, bool) {
+		if p == "" {
+			return "", false
+		}
+		return p, true
+	})
+	env.basepartsLen = len(env.baseparts)
+	// Set context.
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	env.ctx = newEnvironmentContext(ctx, env)
 	return env
 }
 
-// BasePath is specified on the Environment interface.
-func (env *environment) BasePath() string {
-	return env.basePath
+// Context implements the Environment interface.
+func (env *environment) Context() context.Context {
+	return env.ctx
 }
 
-// DefaultDomain is specified on the Environment interface.
+// Basepath implements the Environment interface.
+func (env *environment) Basepath() string {
+	return env.basepath
+}
+
+// DefaultDomain implements the Environment interface.
 func (env *environment) DefaultDomain() string {
 	return env.defaultDomain
 }
 
-// DefaultResource is specified on the Environment interface.
+// DefaultResource implements the Environment interface.
 func (env *environment) DefaultResource() string {
 	return env.defaultResource
 }
 
-// Templates is specified on the Environment interface.
-func (env *environment) Templates() TemplatesCache {
-	return env.templates
-}
-
-//--------------------
-// OPTIONS
-//--------------------
-
-// BasePath sets the path thats used as prefix before
-// domain and resource.
-func BasePath(basePath string) Option {
-	return func(env Environment) {
-		if basePath == "" {
-			basePath = "/"
-		}
-		if basePath[len(basePath)-1] != '/' {
-			basePath += "/"
-		}
-		envImpl, ok := env.(*environment)
-		if ok {
-			envImpl.basePath = basePath
-		}
-	}
-}
-
-// DefaultDomain sets the default domain.
-func DefaultDomain(defaultDomain string) Option {
-	return func(env Environment) {
-		if defaultDomain == "" {
-			defaultDomain = "default"
-		}
-		envImpl, ok := env.(*environment)
-		if ok {
-			envImpl.defaultDomain = defaultDomain
-		}
-	}
-}
-
-// DefaultResource sets the default resource.
-func DefaultResource(defaultResource string) Option {
-	return func(env Environment) {
-		if defaultResource == "" {
-			defaultResource = "default"
-		}
-		envImpl, ok := env.(*environment)
-		if ok {
-			envImpl.defaultResource = defaultResource
-		}
-	}
-}
-
-// Templates sets the templates cache.
-func Templates(templates TemplatesCache) Option {
-	return func(env Environment) {
-		if templates == nil {
-			templates = NewTemplatesCache()
-		}
-		envImpl, ok := env.(*environment)
-		if ok {
-			envImpl.templates = templates
-		}
-	}
+// TemplatesCache implements the Environment interface.
+func (env *environment) TemplatesCache() TemplatesCache {
+	return env.templatesCache
 }
 
 // EOF

@@ -1,5 +1,13 @@
 # Tideland Go REST Server Library
 
+## 2016-10-04
+
+- Improved passing external contexts into an environment, e.g.
+  containing database connection pools
+- Changed multiplexer configuration to now use *etc.Etc* from
+  the *Tideland Go Library*
+- More robust basepath handling now
+
 ## 2016-09-29
 
 - Fixed bug with public handler types

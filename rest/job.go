@@ -18,6 +18,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/tideland/golib/stringex"
 )
 
 //--------------------
@@ -81,7 +83,7 @@ type Job interface {
 
 // job implements the Job interface.
 type job struct {
-	environment    Environment
+	environment    *environment
 	ctx            context.Context
 	request        *http.Request
 	responseWriter http.ResponseWriter
@@ -91,7 +93,7 @@ type job struct {
 }
 
 // newJob parses the URL and returns the prepared job.
-func newJob(env Environment, r *http.Request, rw http.ResponseWriter) Job {
+func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 	// Init the job.
 	j := &job{
 		environment:    env,
@@ -99,7 +101,12 @@ func newJob(env Environment, r *http.Request, rw http.ResponseWriter) Job {
 		responseWriter: rw,
 	}
 	// Split path for REST identifiers.
-	parts := strings.Split(r.URL.Path[len(env.BasePath()):], "/")
+	parts := stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
+		if p == "" {
+			return "", false
+		}
+		return p, true
+	})[env.basepartsLen:]
 	switch len(parts) {
 	case 3:
 		j.resourceID = parts[2]
@@ -109,11 +116,11 @@ func newJob(env Environment, r *http.Request, rw http.ResponseWriter) Job {
 		j.resource = parts[1]
 		j.domain = parts[0]
 	case 1:
-		j.resource = j.environment.DefaultResource()
+		j.resource = j.environment.defaultResource
 		j.domain = parts[0]
 	case 0:
-		j.resource = j.environment.DefaultResource()
-		j.domain = j.environment.DefaultDomain()
+		j.resource = j.environment.defaultResource
+		j.domain = j.environment.defaultDomain
 	default:
 		j.resourceID = strings.Join(parts[2:], "/")
 		j.resource = parts[1]
@@ -124,62 +131,60 @@ func newJob(env Environment, r *http.Request, rw http.ResponseWriter) Job {
 
 // String is defined on the Stringer interface.
 func (j *job) String() string {
-	if j.resourceID == "" {
-		return fmt.Sprintf("%s /%s/%s", j.request.Method, j.domain, j.resource)
-	}
-	return fmt.Sprintf("%s /%s/%s/%s", j.request.Method, j.domain, j.resource, j.resourceID)
+	path := j.createPath(j.domain, j.resource, j.resourceID)
+	return fmt.Sprintf("%s %s", j.request.Method, path)
 }
 
-// Environment is specified on the Job interface.
+// Environment implements the Job interface.
 func (j *job) Environment() Environment {
 	return j.environment
 }
 
-// Request is specified on the Job interface.
+// Request implements the Job interface.
 func (j *job) Request() *http.Request {
 	return j.request
 }
 
-// ResponseWriter is specified on the Job interface.
+// ResponseWriter implements the Job interface.
 func (j *job) ResponseWriter() http.ResponseWriter {
 	return j.responseWriter
 }
 
-// Domain is specified on the Job interface.
+// Domain implements the Job interface.
 func (j *job) Domain() string {
 	return j.domain
 }
 
-// Resource is specified on the Job interface.
+// Resource implements the Job interface.
 func (j *job) Resource() string {
 	return j.resource
 }
 
-// ResourceID is specified on the Job interface.
+// ResourceID implements the Job interface.
 func (j *job) ResourceID() string {
 	return j.resourceID
 }
 
-// Context is specified on the Job interface.
+// Context implements the Job interface.
 func (j *job) Context() context.Context {
 	// Lazy init.
 	if j.ctx == nil {
-		j.ctx = newContext(j)
+		j.ctx = newJobContext(j.environment.ctx, j)
 	}
 	return j.ctx
 }
 
-// AcceptsContentType is specified on the Job interface.
+// AcceptsContentType implements the Job interface.
 func (j *job) AcceptsContentType(contentType string) bool {
 	return strings.Contains(j.request.Header.Get("Accept"), contentType)
 }
 
-// HasContentType is specified on the Job interface.
+// HasContentType implements the Job interface.
 func (j *job) HasContentType(contentType string) bool {
 	return strings.Contains(j.request.Header.Get("Content-Type"), contentType)
 }
 
-// Languages is specified on the Job interface.
+// Languages implements the Job interface.
 func (j *job) Languages() Languages {
 	accept := j.request.Header.Get("Accept-Language")
 	languages := Languages{}
@@ -201,14 +206,15 @@ func (j *job) Languages() Languages {
 
 // createPath creates a path out of the major URL parts.
 func (j *job) createPath(domain, resource, resourceID string) string {
-	path := j.environment.BasePath() + domain + "/" + resource
+	parts := append(j.environment.baseparts, domain, resource)
 	if resourceID != "" {
-		path = path + "/" + resourceID
+		parts = append(parts, resourceID)
 	}
-	return path
+	path := strings.Join(parts, "/")
+	return "/" + path
 }
 
-// InternalPath is specified on the Job interface.
+// InternalPath implements the Job interface.
 func (j *job) InternalPath(domain, resource, resourceID string, query ...KeyValue) string {
 	path := j.createPath(domain, resource, resourceID)
 	if len(query) > 0 {
@@ -217,28 +223,28 @@ func (j *job) InternalPath(domain, resource, resourceID string, query ...KeyValu
 	return path
 }
 
-// Redirect is specified on the Job interface.
+// Redirect implements the Job interface.
 func (j *job) Redirect(domain, resource, resourceID string) {
 	path := j.createPath(domain, resource, resourceID)
 	http.Redirect(j.responseWriter, j.request, path, http.StatusTemporaryRedirect)
 }
 
-// Renderer is specified on the Job interface.
+// Renderer implements the Job interface.
 func (j *job) Renderer() Renderer {
-	return &renderer{j.responseWriter, j.environment.Templates()}
+	return &renderer{j.responseWriter, j.environment.templatesCache}
 }
 
-// GOB is specified on the Job interface.
+// GOB implements the Job interface.
 func (j *job) GOB() Formatter {
 	return &gobFormatter{j}
 }
 
-// JSON is specified on the Job interface.
+// JSON implements the Job interface.
 func (j *job) JSON(html bool) Formatter {
 	return &jsonFormatter{j, html}
 }
 
-// XML is specified on the Job interface.
+// XML implements the Job interface.
 func (j *job) XML() Formatter {
 	return &xmlFormatter{j}
 }

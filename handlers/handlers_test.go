@@ -13,6 +13,7 @@ package handlers_test
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io/ioutil"
 	"mime/multipart"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"github.com/tideland/golib/audit"
+	"github.com/tideland/golib/etc"
 
 	"github.com/tideland/gorest/handlers"
 	"github.com/tideland/gorest/jwt"
@@ -40,7 +42,7 @@ func TestWrapperHandler(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	data := "Been there, done that!"
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	handler := func(rw http.ResponseWriter, r *http.Request) {
@@ -61,7 +63,7 @@ func TestFileServeHandler(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
 	data := "Been there, done that!"
 	// Setup the test file.
-	dir, err := ioutil.TempDir("", "golib-rest")
+	dir, err := ioutil.TempDir("", "gorest")
 	assert.Nil(err)
 	defer os.RemoveAll(dir)
 	filename := filepath.Join(dir, "foo.txt")
@@ -73,7 +75,7 @@ func TestFileServeHandler(t *testing.T) {
 	err = f.Close()
 	assert.Nil(err)
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err = mux.Register("test", "files", handlers.NewFileServeHandler("files", dir))
@@ -105,7 +107,7 @@ func TestFileUploadHandler(t *testing.T) {
 		return nil
 	}
 	// Setup the test server.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	err := mux.Register("test", "files", handlers.NewFileUploadHandler("files", processor))
@@ -223,7 +225,7 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		},
 	}
 	// Run defined tests.
-	mux := rest.NewMultiplexer()
+	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
 	for i, test := range tests {
@@ -251,6 +253,19 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			assert.Equal(resp.Status, test.status)
 		}
 	}
+}
+
+//--------------------
+// HELPERS
+//--------------------
+
+// newMultiplexer creates a new multiplexer with a testing context
+// and a testing configuration.
+func newMultiplexer(assert audit.Assertion) rest.Multiplexer {
+	cfgStr := "{etc {basepath /}{default-domain default}{default-resource default}}"
+	cfg, err := etc.ReadString(cfgStr)
+	assert.Nil(err)
+	return rest.NewMultiplexer(context.Background(), cfg)
 }
 
 // EOF
