@@ -223,7 +223,7 @@ func (th *testHandler) testDecode(job rest.Job) (bool, error) {
 	subject, ok := jwtOut.Claims().Subject()
 	th.assert.True(ok)
 	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(jwtOut.Claims())
+	job.JSON(true).Write(rest.StatusOK, jwtOut.Claims())
 	return true, nil
 }
 
@@ -240,7 +240,7 @@ func (th *testHandler) testVerify(job rest.Job) (bool, error) {
 	subject, ok := jwtOut.Claims().Subject()
 	th.assert.True(ok)
 	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(jwtOut.Claims())
+	job.JSON(true).Write(rest.StatusOK, jwtOut.Claims())
 	return true, nil
 }
 

@@ -332,10 +332,10 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeXML):
 		th.assert.Logf("GET XML")
-		job.XML().Write(data)
+		job.XML().Write(rest.StatusOK, data)
 	case job.AcceptsContentType(rest.ContentTypeJSON):
 		th.assert.Logf("GET JSON")
-		job.JSON(true).Write(data)
+		job.JSON(true).Write(rest.StatusOK, data)
 	default:
 		th.assert.Logf("GET HTML")
 		job.Renderer().Render("test:context:html", data)
@@ -353,16 +353,16 @@ func (th *TestHandler) Put(job rest.Job) (bool, error) {
 	case job.HasContentType(rest.ContentTypeJSON):
 		err := job.JSON(true).Read(&data)
 		if err != nil {
-			job.JSON(true).Write(TestErrorData{err.Error()})
+			job.JSON(true).Write(rest.StatusBadRequest, TestErrorData{err.Error()})
 		} else {
-			job.JSON(true).Write(data)
+			job.JSON(true).Write(rest.StatusOK, data)
 		}
 	case job.HasContentType(rest.ContentTypeXML):
 		err := job.XML().Read(&data)
 		if err != nil {
-			job.XML().Write(TestErrorData{err.Error()})
+			job.XML().Write(rest.StatusBadRequest, TestErrorData{err.Error()})
 		} else {
-			job.XML().Write(data)
+			job.XML().Write(rest.StatusOK, data)
 		}
 	}
 
@@ -373,9 +373,9 @@ func (th *TestHandler) Post(job rest.Job) (bool, error) {
 	var data TestCounterData
 	err := job.GOB().Read(&data)
 	if err != nil {
-		job.GOB().Write(err)
+		job.GOB().Write(rest.StatusBadRequest, err)
 	} else {
-		job.GOB().Write(data)
+		job.GOB().Write(rest.StatusOK, data)
 	}
 	return true, nil
 }

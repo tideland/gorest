@@ -12,7 +12,6 @@ package handlers
 //--------------------
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/tideland/gorest/jwt"
@@ -147,13 +146,13 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 
 // deny sends a negative feedback to the caller.
 func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
-	job.ResponseWriter().WriteHeader(http.StatusUnauthorized)
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
-		return rest.NegativeFeedback(job.JSON(true), msg)
+		return rest.NegativeFeedback(job.JSON(true), rest.StatusUnauthorized, msg)
 	case job.AcceptsContentType(rest.ContentTypeXML):
-		return rest.NegativeFeedback(job.XML(), msg)
+		return rest.NegativeFeedback(job.XML(), rest.StatusUnauthorized, msg)
 	default:
+		job.ResponseWriter().WriteHeader(rest.StatusUnauthorized)
 		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypePlain)
 		job.ResponseWriter().Write([]byte(msg))
 		return nil
