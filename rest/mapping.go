@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/errors"
+	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
 )
 
@@ -96,13 +97,15 @@ func (hl *handlerList) handle(job Job) error {
 // mapping maps domains and resources to lists of
 // resource handlers.
 type mapping struct {
-	handlers map[string]*handlerList
+	ignoreFavicon bool
+	handlers      map[string]*handlerList
 }
 
 // newMapping returns a new handler mapping.
-func newMapping() *mapping {
+func newMapping(cfg etc.Etc) *mapping {
 	return &mapping{
-		handlers: make(map[string]*handlerList),
+		ignoreFavicon: cfg.ValueAsBool("ignore-favicon", true),
+		handlers:      make(map[string]*handlerList),
 	}
 }
 
@@ -132,6 +135,13 @@ func (m *mapping) deregister(domain, resource string, id string) {
 
 // handle handles a request.
 func (m *mapping) handle(job Job) error {
+	// Check for favicon.ico.
+	if m.ignoreFavicon {
+		if job.Domain() == "favicon.ico" {
+			job.ResponseWriter().WriteHeader(StatusNoContent)
+			return nil
+		}
+	}
 	// Find handler list.
 	hl, err := m.handlerList(job)
 	if err != nil {
