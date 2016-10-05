@@ -71,6 +71,7 @@ type multiplexer struct {
 //         {basepath /}
 //         {default-domain default}
 //         {default-resource default}
+//         {ignore-favicon true}
 //     }
 //
 // The values shown here are the default values if the configuration
@@ -78,7 +79,7 @@ type multiplexer struct {
 func NewMultiplexer(ctx context.Context, cfg etc.Etc) Multiplexer {
 	return &multiplexer{
 		environment: newEnvironment(ctx, cfg),
-		mapping:     newMapping(),
+		mapping:     newMapping(cfg),
 	}
 }
 
