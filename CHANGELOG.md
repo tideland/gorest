@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-10-05
+
+- *Formatter.Write()* now also writes the status code
+
 ## 2016-10-04
 
 - Improved passing external contexts into an environment, e.g.
