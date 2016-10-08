@@ -12,6 +12,7 @@ package handlers
 //--------------------
 
 import (
+	"context"
 	"time"
 
 	"github.com/tideland/gorest/jwt"
@@ -21,6 +22,12 @@ import (
 //--------------------
 // JWT AUTHORIZATION HANDLER
 //--------------------
+
+// key for the storage of values in a context.
+type key int
+
+// jwtKey for the storrage of a JWT.
+var jwtKey key = 0
 
 // JWTAuthorizationConfig allows to control how the JWT authorization
 // handler works. All values are optional. In this case tokens are only
@@ -34,7 +41,8 @@ type JWTAuthorizationConfig struct {
 }
 
 // jwtAuthorizationHandler checks for a valid token and then runs
-// a gatekeeper function.
+// a gatekeeper function. If everythinh is fine the token is stored
+// in the job context for the following handlers.
 type jwtAuthorizationHandler struct {
 	id         string
 	cache      jwt.Cache
@@ -126,6 +134,7 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 	default:
 		jobJWT, err = jwt.DecodeFromJob(job)
 	}
+	// Now do the checks.
 	if err != nil {
 		return false, h.deny(job, err.Error())
 	}
@@ -141,6 +150,10 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 			return false, h.deny(job, "gatekeeper denied:"+err.Error())
 		}
 	}
+	// All fine, store token in context.
+	job.EnhanceContext(func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, jwtKey, jobJWT)
+	})
 	return true, nil
 }
 
@@ -157,6 +170,14 @@ func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 		job.ResponseWriter().Write([]byte(msg))
 		return nil
 	}
+}
+
+// JWTFromJob retrieves a JWT out of the context of a job, when a
+// JWTAuthorizationHandler earlier in the queue of handlers successfully
+// received and checked one.
+func JWTFormJob(job rest.Job) (jwt.JWT, bool) {
+	jobJWT, ok := context.Value(job.Context(), jwtKey).(jwt.JWT)
+	return jobJWT, ok
 }
 
 // EOF

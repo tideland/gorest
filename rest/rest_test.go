@@ -267,6 +267,9 @@ func (ah *AuthHandler) Get(job rest.Job) (bool, error) {
 		job.Redirect("authentication", "token", "")
 		return false, nil
 	}
+	job.ExtentContext(func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, "Token", "foo")
+	})
 	return true, nil
 }
 
@@ -326,6 +329,10 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	if th.id == "auth:token" {
 		job.ResponseWriter().Header().Add("Token", "foo")
+	}
+	if th.id == "stack:test" {
+		ctxToken := job.Context().Value("Token")
+		th.assert.Equal(ctxToken, "foo")
 	}
 	ctxTest := job.Context().Value("test")
 	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID(), ctxTest.(string)}

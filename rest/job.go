@@ -50,8 +50,17 @@ type Job interface {
 	// ResourceID return the requests resource ID.
 	ResourceID() string
 
-	// Context returns a context containing the job.
+	// Context returns a job context also containing the
+	// job itself.
 	Context() context.Context
+
+	// EnhanceContext allows to enhance the job context
+	// values, a deadline, a timeout, or a cancel. So
+	// e.g. a first handler in a handler queue can
+	// store authentication information in the context
+	// and a following handler can use it (see the
+	// JWTAuthorizationHandler).
+	EnhanceContext(func(ctx context.Context) context.Context)
 
 	// AcceptsContentType checks if the requestor accepts a given content type.
 	AcceptsContentType(contentType string) bool
@@ -172,6 +181,12 @@ func (j *job) Context() context.Context {
 		j.ctx = newJobContext(j.environment.ctx, j)
 	}
 	return j.ctx
+}
+
+// EnhanceContext implements the Job interface.
+func (j *job) EnhanceContext(f func(ctx context.Context) context.Context) {
+	ctx := j.Context()
+	j.ctx = f(ctx)
 }
 
 // AcceptsContentType implements the Job interface.
