@@ -176,7 +176,7 @@ func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 // JWTAuthorizationHandler earlier in the queue of handlers successfully
 // received and checked one.
 func JWTFormJob(job rest.Job) (jwt.JWT, bool) {
-	jobJWT, ok := context.Value(job.Context(), jwtKey).(jwt.JWT)
+	jobJWT, ok := job.Context().Value(jwtKey).(jwt.JWT)
 	return jobJWT, ok
 }
 
