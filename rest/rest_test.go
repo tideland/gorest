@@ -267,7 +267,7 @@ func (ah *AuthHandler) Get(job rest.Job) (bool, error) {
 		job.Redirect("authentication", "token", "")
 		return false, nil
 	}
-	job.ExtentContext(func(ctx context.Context) context.Context {
+	job.EnhanceContext(func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, "Token", "foo")
 	})
 	return true, nil
