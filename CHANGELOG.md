@@ -1,5 +1,11 @@
 # Tideland Go REST Server Library
 
+## 2016-10-08
+
+- *Job* allows now to enhance its context for following handlers
+- *JWTAuthorizationHandler* stores a successfully checked token
+  in the job context
+
 ## 2016-10-05
 
 - *Formatter.Write()* now also writes the status code
