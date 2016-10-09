@@ -175,7 +175,7 @@ func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 // JWTFromJob retrieves a JWT out of the context of a job, when a
 // JWTAuthorizationHandler earlier in the queue of handlers successfully
 // received and checked one.
-func JWTFormJob(job rest.Job) (jwt.JWT, bool) {
+func JWTFromJob(job rest.Job) (jwt.JWT, bool) {
 	jobJWT, ok := job.Context().Value(jwtKey).(jwt.JWT)
 	return jobJWT, ok
 }
