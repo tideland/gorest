@@ -144,12 +144,13 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			},
 			status: 200,
 			auditf: func(assert audit.Assertion, job rest.Job) (bool, error) {
-				auditJWT, ok := handler.JWTFromJob(job)
+				auditJWT, ok := handlers.JWTFromJob(job)
 				assert.True(ok)
 				assert.NotNil(auditJWT)
 				subject, ok := auditJWT.Claims().Subject()
 				assert.True(ok)
 				assert.Equal(subject, "test")
+				return true, nil
 			},
 		}, {
 			id: "token-verify-no-gatekeeper",
@@ -243,7 +244,7 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		err := mux.Register("jwt", test.id, handlers.NewJWTAuthorizationHandler(test.id, test.config))
 		assert.Nil(err)
 		if test.auditf != nil {
-			err := mux.Register("jwt", test.id, handlers.NewAuditHandler("audit", assert, test.auditf)
+			err := mux.Register("jwt", test.id, handlers.NewAuditHandler("audit", assert, test.auditf))
 			assert.Nil(err)
 		}
 		var requestProcessor func(req *http.Request) *http.Request
