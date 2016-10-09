@@ -13,7 +13,7 @@ package handlers
 
 import (
 	"github.com/tideland/golib/audit"
-	
+
 	"github.com/tideland/gorest/rest"
 )
 
@@ -23,7 +23,7 @@ import (
 
 // AuditHandlerFunc defines the function which will be executed
 // for each request. The assert can be used for tests.
-func AuditHandlerFunc func(assert audit.Assertion, job rest.Job) (bool, error)
+type AuditHandlerFunc func(assert audit.Assertion, job rest.Job) (bool, error)
 
 // auditHandler helps testing other handlers.
 type auditHandler struct {
