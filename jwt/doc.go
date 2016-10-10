@@ -21,9 +21,9 @@ import (
 // VERSION
 //--------------------
 
-// PackageVersion returns the version of the version package.
-func PackageVersion() version.Version {
-	return version.New(2, 4, 0)
+// Version returns the version of the JSON Web Token package.
+func Version() version.Version {
+	return version.New(2, 4, 2)
 }
 
 // EOF
