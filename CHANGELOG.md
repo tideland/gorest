@@ -1,5 +1,10 @@
 # Tideland Go REST Server Library
 
+## 2016-10-18
+
+- Added *Query* type and method for more concenient access to
+  query values
+
 ## 2016-10-08
 
 - *Job* allows now to enhance its context for following handlers

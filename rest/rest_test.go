@@ -51,13 +51,14 @@ func TestGetJSON(t *testing.T) {
 	// Perform test requests.
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "GET",
-		Path:   "/base/test/json/4711",
+		Path:   "/base/test/json/4711?foo=0815",
 		Header: restaudit.KeyValues{"Accept": "application/json"},
 	})
 	var data TestRequestData
 	err = json.Unmarshal(resp.Body, &data)
 	assert.Nil(err)
 	assert.Equal(data.ResourceID, "4711")
+	assert.Equal(data.Query, "0815")
 	assert.Equal(data.Context, "foo")
 }
 
@@ -71,7 +72,7 @@ func TestPutJSON(t *testing.T) {
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	reqData := TestRequestData{"foo", "bar", "4711", ""}
+	reqData := TestRequestData{"foo", "bar", "4711", "0815", ""}
 	reqBuf, _ := json.Marshal(reqData)
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "PUT",
@@ -113,7 +114,7 @@ func TestPutXML(t *testing.T) {
 	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	reqData := TestRequestData{"foo", "bar", "4711", ""}
+	reqData := TestRequestData{"foo", "bar", "4711", "0815", ""}
 	reqBuf, _ := xml.Marshal(reqData)
 	resp := ts.DoRequest(&restaudit.Request{
 		Method: "PUT",
@@ -281,6 +282,7 @@ type TestRequestData struct {
 	Domain     string
 	Resource   string
 	ResourceID string
+	Query      string
 	Context    string
 }
 
@@ -302,6 +304,7 @@ const testTemplateHTML = `
 <li>Domain: {{.Domain}}</li>
 <li>Resource: {{.Resource}}</li>
 <li>Resource ID: {{.ResourceID}}</li>
+<li>Query {{.Query}}</li>
 <li>Context: {{.Context}}</li>
 </ul>
 </body>
@@ -335,7 +338,8 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 		th.assert.Equal(ctxToken, "foo")
 	}
 	ctxTest := job.Context().Value("test")
-	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID(), ctxTest.(string)}
+	query := job.Query().ValueAsString("foo", "bar")
+	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID(), query, ctxTest.(string)}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeXML):
 		th.assert.Logf("GET XML")

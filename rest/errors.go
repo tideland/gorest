@@ -35,6 +35,7 @@ const (
 	ErrUploadingFile
 	ErrInvalidContentType
 	ErrNoCachedTemplate
+	ErrQueryValueNotFound
 )
 
 var errorMessages = errors.Messages{
@@ -53,6 +54,7 @@ var errorMessages = errors.Messages{
 	ErrUploadingFile:      "uploaded file cannot be handled by %q",
 	ErrInvalidContentType: "content type is not %q",
 	ErrNoCachedTemplate:   "template %q is not cached",
+	ErrQueryValueNotFound: "query value not found",
 }
 
 // EOF
