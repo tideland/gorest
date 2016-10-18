@@ -19,8 +19,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/tideland/golib/errors"
+	"github.com/tideland/golib/stringex"
 )
 
 //--------------------
@@ -43,6 +46,14 @@ const (
 	ContentTypeXML   = "application/xml"
 	ContentTypeJSON  = "application/json"
 	ContentTypeGOB   = "application/vnd.tideland.gob"
+)
+
+//--------------------
+// GLOBAL
+//--------------------
+
+var (
+	defaulter = stringex.NewDefaulter("job", false)
 )
 
 //--------------------
@@ -192,6 +203,93 @@ func (xf *xmlFormatter) Read(data interface{}) error {
 		return err
 	}
 	return xml.Unmarshal(body, &data)
+}
+
+//--------------------
+// QUERY
+//--------------------
+
+// Query allows typed access with default values to a jobs
+// request values passed as query.
+type Query interface {
+	// ValueAsString retrieves the string value of a given key. If it
+	// doesn't exist the default value dv is returned.
+	ValueAsString(key, dv string) string
+
+	// ValueAsBool retrieves the bool value of a given key. If it
+	// doesn't exist the default value dv is returned.
+	ValueAsBool(key string, dv bool) bool
+
+	// ValueAsInt retrieves the int value of a given key. If it
+	// doesn't exist the default value dv is returned.
+	ValueAsInt(key string, dv int) int
+
+	// ValueAsFloat64 retrieves the float64 value of a given key. If it
+	// doesn't exist the default value dv is returned.
+	ValueAsFloat64(key string, dv float64) float64
+
+	// ValueAsTime retrieves the string value of a given key and
+	// interprets it as time with the passed format. If it
+	// doesn't exist the default value dv is returned.
+	ValueAsTime(key, layout string, dv time.Time) time.Time
+
+	// ValueAsDuration retrieves the duration value of a given key.
+	// If it doesn't exist the default value dv is returned.
+	ValueAsDuration(key string, dv time.Duration) time.Duration
+}
+
+// query implements Query.
+type query struct {
+	values url.Values
+}
+
+// ValueAsString implements the Query interface.
+func (q *query) ValueAsString(key, dv string) string {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsString(value, dv)
+}
+
+// ValueAsBool implements the Query interface.
+func (q *query) ValueAsBool(key string, dv bool) bool {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsBool(value, dv)
+}
+
+// ValueAsInt implements the Query interface.
+func (q *query) ValueAsInt(key string, dv int) int {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsInt(value, dv)
+}
+
+// ValueAsFloat64 implements the Query interface.
+func (q *query) ValueAsFloat64(key string, dv float64) float64 {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsFloat64(value, dv)
+}
+
+// ValueAsTime implements the Query interface.
+func (q *query) ValueAsTime(key, format string, dv time.Time) time.Time {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsTime(value, format, dv)
+}
+
+// ValueAsDuration implements the Query interface.
+func (q *query) ValueAsDuration(key string, dv time.Duration) time.Duration {
+	value := queryValuer(q.values.Get(key))
+	return defaulter.AsDuration(value, dv)
+}
+
+// queryValues implements the stringex.Valuer interface for
+// the usage inside of query.
+type queryValuer string
+
+// Value implements the Valuer interface.
+func (qv queryValuer) Value() (string, error) {
+	v := string(qv)
+	if len(v) == 0 {
+		return "", errors.New(ErrQueryValueNotFound, errorMessages)
+	}
+	return v, nil
 }
 
 // EOF

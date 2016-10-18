@@ -88,6 +88,9 @@ type Job interface {
 
 	// XML returns a XML formatter.
 	XML() Formatter
+
+	// Query returns a convenient access to query values.
+	Query() Query
 }
 
 // job implements the Job interface.
@@ -262,6 +265,11 @@ func (j *job) JSON(html bool) Formatter {
 // XML implements the Job interface.
 func (j *job) XML() Formatter {
 	return &xmlFormatter{j}
+}
+
+// Query implements the Job interface.
+func (j *job) Query() Query {
+	return &query{j.request.URL.Query()}
 }
 
 // EOF
