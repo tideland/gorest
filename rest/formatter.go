@@ -60,13 +60,13 @@ var (
 // ENVELOPE
 //--------------------
 
-// Envelope is a helper to give a qualified feedback in RESTful requests.
+// envelope is a helper to give a qualified feedback in RESTful requests.
 // It contains wether the request has been successful, in case of an
 // error an additional message and the payload.
-type Envelope struct {
-	Success bool
-	Message string
-	Payload interface{}
+type envelope struct {
+	Status  string      `json:"status" xml:"status"`
+	Message string      `json:"message,omitempty" xml:"message,omitempty"`
+	Payload interface{} `json:"payload,omitempty" xml:"payload,omitempty"`
 }
 
 //--------------------
@@ -87,13 +87,13 @@ type Formatter interface {
 // PositiveFeedback writes a positive feedback envelope to the formatter.
 func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) error {
 	fmsg := fmt.Sprintf(msg, args...)
-	return f.Write(StatusOK, &Envelope{true, fmsg, payload})
+	return f.Write(StatusOK, envelope{"success", fmsg, payload})
 }
 
 // NegativeFeedback writes a negative feedback envelope to the formatter.
 func NegativeFeedback(f Formatter, status int, msg string, args ...interface{}) error {
 	fmsg := fmt.Sprintf(msg, args...)
-	return f.Write(status, &Envelope{false, fmsg, nil})
+	return f.Write(status, envelope{"fail", fmsg, nil})
 }
 
 //--------------------
