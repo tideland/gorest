@@ -161,7 +161,7 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
-		return rest.NegativeFeedback(job.JSON(true), rest.StatusUnauthorized, msg)
+		return rest.NegativeFeedback(job.JSON(false), rest.StatusUnauthorized, msg)
 	case job.AcceptsContentType(rest.ContentTypeXML):
 		return rest.NegativeFeedback(job.XML(), rest.StatusUnauthorized, msg)
 	default:

@@ -23,7 +23,7 @@ import (
 
 // Version returns the version of the JSON Web Token package.
 func Version() version.Version {
-	return version.New(2, 5, 0)
+	return version.New(2, 5, 1)
 }
 
 // EOF

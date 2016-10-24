@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-10-24
+
+- Fixed marshalling bug of positive or negative feedback
+
 ## 2016-10-18
 
 - Added *Query* type and method for more concenient access to
