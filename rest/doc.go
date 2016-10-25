@@ -101,7 +101,7 @@ import (
 
 // Version returns the version of the REST package.
 func Version() version.Version {
-	return version.New(2, 5, 1)
+	return version.New(2, 5, 2)
 }
 
 // EOF

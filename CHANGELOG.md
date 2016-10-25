@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-10-25
+
+- Fixed missing feedback after JWT authorization denial
+
 ## 2016-10-24
 
 - Fixed marshalling bug of positive or negative feedback
