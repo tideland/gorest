@@ -15,6 +15,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/tideland/golib/logger"
+
 	"github.com/tideland/gorest/jwt"
 	"github.com/tideland/gorest/rest"
 )
@@ -38,6 +40,7 @@ type JWTAuthorizationConfig struct {
 	Key        jwt.Key
 	Leeway     time.Duration
 	Gatekeeper func(job rest.Job, claims jwt.Claims) error
+	Logger     func(job rest.Job, msg string)
 }
 
 // jwtAuthorizationHandler checks for a valid token and then runs
@@ -49,6 +52,7 @@ type jwtAuthorizationHandler struct {
 	key        jwt.Key
 	leeway     time.Duration
 	gatekeeper func(job rest.Job, claims jwt.Claims) error
+	logger     func(job rest.Job, msg string)
 }
 
 // NewJWTAuthorizationHandler creates a handler checking for a valid JSON
@@ -57,6 +61,9 @@ func NewJWTAuthorizationHandler(id string, config *JWTAuthorizationConfig) rest.
 	h := &jwtAuthorizationHandler{
 		id:     id,
 		leeway: time.Minute,
+		logger: func(job rest.Job, msg string) {
+			logger.Warningf("access denied for %v: %s", job, msg)
+		},
 	}
 	if config != nil {
 		if config.Cache != nil {
@@ -70,6 +77,9 @@ func NewJWTAuthorizationHandler(id string, config *JWTAuthorizationConfig) rest.
 		}
 		if config.Gatekeeper != nil {
 			h.gatekeeper = config.Gatekeeper
+		}
+		if config.Logger != nil {
+			h.logger = config.Logger
 		}
 	}
 	return h
@@ -142,12 +152,12 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 		return false, h.deny(job, "no JSON Web Token")
 	}
 	if !jobJWT.IsValid(h.leeway) {
-		return false, h.deny(job, "invalid JSON Web Token")
+		return false, h.deny(job, "JSON Web Token claims 'nbf' and/or 'exp' are not valid")
 	}
 	if h.gatekeeper != nil {
 		err := h.gatekeeper(job, jobJWT.Claims())
 		if err != nil {
-			return false, h.deny(job, "gatekeeper denied:"+err.Error())
+			return false, h.deny(job, "access rejected by gatekeeper: "+err.Error())
 		}
 	}
 	// All fine, store token in context.
@@ -159,6 +169,7 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 
 // deny sends a negative feedback to the caller.
 func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
+	h.logger(job, msg)
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
 		return rest.NegativeFeedback(job.JSON(false), rest.StatusUnauthorized, msg)
