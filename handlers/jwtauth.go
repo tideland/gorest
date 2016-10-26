@@ -33,8 +33,10 @@ var jwtKey key = 0
 
 // JWTAuthorizationConfig allows to control how the JWT authorization
 // handler works. All values are optional. In this case tokens are only
-// decoded without using a cache, validated for the time, and there's
-// no user defined gatekeeper function running afterwards.
+// decoded without using a cache, validated for the current time plus/minus
+// a minute leeway, and there's no user defined gatekeeper function
+// running afterwards. In case of a denial a warning is written with
+// the standard logger.
 type JWTAuthorizationConfig struct {
 	Cache      jwt.Cache
 	Key        jwt.Key
