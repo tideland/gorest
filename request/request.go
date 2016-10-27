@@ -100,14 +100,36 @@ func (c *caller) request(method, service, domain, resource, resourceID string, p
 		parts = append(parts, resourceID)
 	}
 	url := strings.Join(parts, "/")
-	var content io.Reader
+	var buffer io.Reader
 	if params.Content != nil {
 		// Process content based on content type.
-
+		switch params.ContentType {
+		case ContentTypeXML:
+			tmp, err := xml.Marshal(params.Content)
+			if err != nil {
+				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+			buffer = bytes.NewReader(tmp)
+		case ContentTypeJSON:
+			tmp, err := json.Marshal(params.Content)
+			if err != nil {
+				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+			buffer = bytes.NewReader(tmp)
+		case ContentTypeGOB:
+			enc := gob.NewEncoder(buffer)
+			if err := enc.Encode(content); err != nil {
+				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+		case ContentTypeURLEncoded:
+		}
 	}
-	request, err := http.NewRequest(method, url, content)
+	request, err := http.NewRequest(method, url, buffer)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
+	}
+	if params.ContentType != "" {
+		request.Header.Set("Content-Type", params.ContentType)
 	}
 	if params.Token != nil {
 		request = jwt.AddTokenToRequest(request, params.Token)

@@ -23,14 +23,16 @@ const (
 	ErrServiceNotConfigured = iota + 1
 	ErrCannotPrepareRequest
 	ErrHTTPRequestFailed
+	ErrProcessingRequestContent
 	ErrReadingResponse
 )
 
 var errorMessages = errors.Messages{
-	ErrServiceNotConfigured: "service '%s' is not configured",
-	ErrCannotPrepareRequest: "cannot prepare request",
-	ErrHTTPRequestFailed:    "HTTP request failed",
-	ErrReadingResponse:      "cannot read the HTTP response",
+	ErrServiceNotConfigured:     "service '%s' is not configured",
+	ErrCannotPrepareRequest:     "cannot prepare request",
+	ErrHTTPRequestFailed:        "HTTP request failed",
+	ErrProcessingRequestContent: "cannot process request content",
+	ErrReadingResponse:          "cannot read the HTTP response",
 }
 
 // EOF
