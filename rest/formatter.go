@@ -41,11 +41,12 @@ const (
 	StatusConflict     = http.StatusConflict
 
 	// Standard REST content types.
-	ContentTypePlain = "text/plain"
-	ContentTypeHTML  = "text/html"
-	ContentTypeXML   = "application/xml"
-	ContentTypeJSON  = "application/json"
-	ContentTypeGOB   = "application/vnd.tideland.gob"
+	ContentTypePlain      = "text/plain"
+	ContentTypeHTML       = "text/html"
+	ContentTypeXML        = "application/xml"
+	ContentTypeJSON       = "application/json"
+	ContentTypeGOB        = "application/vnd.tideland.gob"
+	ContentTypeURLEncoded = "application/x-www-form-urlencoded"
 )
 
 //--------------------
