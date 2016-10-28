@@ -5,7 +5,7 @@
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-package restaudit
+package request
 
 //--------------------
 // IMPORTS
@@ -14,12 +14,17 @@ package restaudit
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
+	"encoding/gob"
+	"encoding/json"
+	"encoding/xml"
 	"io"
 	"io/ioutil"
-	"mime/multipart"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/tideland/golib/errors"
 
@@ -28,7 +33,81 @@ import (
 )
 
 //--------------------
-// TEST TOOLS
+// SERVERS
+//--------------------
+
+// key is to address the servers inside a context.
+type key int
+
+var serversKey key = 0
+
+// server contains the configuration of one server.
+type server struct {
+	URL       string
+	Transport *http.Transport
+}
+
+// Servers maps IDs of domains to their server configurations.
+// Multiple ones can be added per domain for spreading the
+// load or provide higher availability.
+type Servers interface {
+	// Add adds a domain server configuration.
+	Add(domain string, url string, transport *http.Transport)
+
+	// Caller retrieves a caller for a domain.
+	Caller(domain string) (Caller, error)
+}
+
+// servers implements servers.
+type servers struct {
+	mutex   sync.RWMutex
+	servers map[string][]*server
+}
+
+// NewServers creates a new servers manager.
+func NewServers() Servers {
+	rand.Seed(time.Now().Unix())
+	return &servers{
+		servers: make(map[string][]*server),
+	}
+}
+
+// Add implements the Servers interface.
+func (s *servers) Add(domain, url string, transport *http.Transport) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	srvs, ok := s.servers[domain]
+	if ok {
+		s.servers[domain] = append(srvs, &server{url, transport})
+		return
+	}
+	s.servers[domain] = []*server{&server{url, transport}}
+}
+
+// Caller implements the Servers interface.
+func (s *servers) Caller(domain string) (Caller, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	srvs, ok := s.servers[domain]
+	if !ok {
+		return nil, errors.New(ErrNoServerDefined, errorMessages, domain)
+	}
+	return newCaller(domain, srvs), nil
+}
+
+// NewContext returns a new context that carries configured servers.
+func NewContext(ctx context.Context, servers Servers) context.Context {
+	return context.WithValue(ctx, serversKey, servers)
+}
+
+// FromContext returns the servers configuration stored in ctx, if any.
+func FromContext(ctx context.Context) (Servers, bool) {
+	servers, ok := ctx.Value(serversKey).(Servers)
+	return servers, ok
+}
+
+//--------------------
+// GENERAL HELPERS
 //--------------------
 
 // KeyValues handles keys and values for request headers and cookies.
@@ -43,17 +122,8 @@ type Response struct {
 }
 
 //--------------------
-// CALLER
+// CALL PARAMETERS
 //--------------------
-
-// Service contains the configuration of one service.
-type Service struct {
-	Transport *http.Transport
-	BaseURL   string
-}
-
-// Services maps IDs of services to their base URL.
-type Services map[string]Service
 
 // Parameters allows to pass parameters to a call.
 type Parameters struct {
@@ -62,73 +132,112 @@ type Parameters struct {
 	Content     interface{}
 }
 
+// body returns the content as body data depending on
+// the content type.
+func (p *Parameters) body() (io.Reader, error) {
+	buffer := bytes.NewBuffer(nil)
+	if p.Content != nil {
+		// Process content based on content type.
+		switch p.ContentType {
+		case rest.ContentTypeXML:
+			tmp, err := xml.Marshal(p.Content)
+			if err != nil {
+				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+			buffer.Write(tmp)
+		case rest.ContentTypeJSON:
+			tmp, err := json.Marshal(p.Content)
+			if err != nil {
+				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+			buffer.Write(tmp)
+		case rest.ContentTypeGOB:
+			enc := gob.NewEncoder(buffer)
+			if err := enc.Encode(p.Content); err != nil {
+				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
+		}
+	}
+	return buffer, nil
+}
+
+// values returns the content as URL encoded values.
+func (p *Parameters) values() (url.Values, error) {
+	kvs, ok := p.Content.(KeyValues)
+	if !ok {
+		return nil, errors.New(ErrContentNotKeyValue, errorMessages)
+	}
+	values := url.Values{}
+	for key, value := range kvs {
+		values.Set(key, value)
+	}
+	return values, nil
+}
+
+//--------------------
+// CALLER
+//--------------------
+
 // Caller provides an interface to make calls to
 // configured services.
 type Caller interface {
 	// Get performs a GET request on the defined service.
-	Get(service, domain, resource, resourceID string, params *Parameters) (*Response, error)
+	Get(resource, resourceID string, params *Parameters) (*Response, error)
 }
 
 // caller implements the Caller interface.
 type caller struct {
-	services Services
+	domain string
+	srvs   []*server
 }
 
-// NewCaller creates a configured caller.
-func NewCaller(services Services) Caller {
-	return &caller{services}
+// newCaller creates a configured caller.
+func newCaller(domain string, srvs []*server) Caller {
+	return &caller{domain, srvs}
 }
 
 // Get implements the Caller interface.
-func (c *caller) Get(service, domain, resource, resourceID string, params *Parameters) (*Response, error) {
-	return c.request("GET", service, domain, resource, resourceID, params)
+func (c *caller) Get(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("GET", resource, resourceID, params)
 }
 
 // request performs all requests.
-func (c *caller) request(method, service, domain, resource, resourceID string, params *Parameters) (*Response, error) {
-	svc, ok := c.services[service]
-	if !ok {
-		return nil, errors.New(ErrServiceNotConfigured, errorMessages, service)
-	}
-	// Prepare client and request.
+func (c *caller) request(method, resource, resourceID string, params *Parameters) (*Response, error) {
+	// Prepare client.
+	// TODO Mue 2016-10-28 Add more algorithms than just random selection.
+	srv := c.srvs[rand.Intn(len(c.srvs))]
 	client := &http.Client{}
-	if svc.Transport != nil {
-		client.Transport = svc.Transport
+	if srv.Transport != nil {
+		client.Transport = srv.Transport
 	}
-	parts := append(svc.BaseURL, domain, resource)
-	if resourceID != "" {
-		parts = append(parts, resourceID)
-	}
-	url := strings.Join(parts, "/")
-	var buffer io.Reader
-	if params.Content != nil {
-		// Process content based on content type.
-		switch params.ContentType {
-		case ContentTypeXML:
-			tmp, err := xml.Marshal(params.Content)
-			if err != nil {
-				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-			buffer = bytes.NewReader(tmp)
-		case ContentTypeJSON:
-			tmp, err := json.Marshal(params.Content)
-			if err != nil {
-				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-			buffer = bytes.NewReader(tmp)
-		case ContentTypeGOB:
-			enc := gob.NewEncoder(buffer)
-			if err := enc.Encode(content); err != nil {
-				return nil, error.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-		case ContentTypeURLEncoded:
-		}
-	}
-	request, err := http.NewRequest(method, url, buffer)
+	u, err := url.Parse(srv.URL)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
 	}
-	if params.ContentType != "" {
+	upath := strings.Trim(u.Path, "/")
+	path := []string{upath, c.domain, resource}
+	if resourceID != "" {
+		path = append(path, resourceID)
+	}
+	u.Path = strings.Join(path, "/")
+	// Prepare request.
+	body, err := params.body()
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest(method, u.String(), body)
+	if err != nil {
+		return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
+	}
+	switch params.ContentType {
+	case rest.ContentTypeURLEncoded:
+		values, err := params.values()
+		if err != nil {
+			return nil, err
+		}
+		request.URL.RawQuery = values.Encode()
+		request.Header.Set("Content-Type", params.ContentType)
+	case rest.ContentTypeGOB, rest.ContentTypeJSON, rest.ContentTypeXML:
 		request.Header.Set("Content-Type", params.ContentType)
 	}
 	if params.Token != nil {
@@ -151,7 +260,7 @@ func analyzeResponse(response *http.Response) (*Response, error) {
 	}
 	content, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrReadingResponse)
+		return nil, errors.Annotate(err, ErrReadingResponse, errorMessages)
 	}
 	response.Body.Close()
 	return &Response{
@@ -159,7 +268,7 @@ func analyzeResponse(response *http.Response) (*Response, error) {
 		Header:      header,
 		ContentType: header["Content-Type"],
 		Content:     content,
-	}
+	}, nil
 }
 
 // EOF

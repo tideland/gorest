@@ -5,7 +5,7 @@
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-package rest
+package request
 
 //--------------------
 // IMPORTS
@@ -20,18 +20,20 @@ import (
 //--------------------
 
 const (
-	ErrServiceNotConfigured = iota + 1
+	ErrNoServerDefined = iota + 1
 	ErrCannotPrepareRequest
 	ErrHTTPRequestFailed
 	ErrProcessingRequestContent
+	ErrContentNotKeyValue
 	ErrReadingResponse
 )
 
 var errorMessages = errors.Messages{
-	ErrServiceNotConfigured:     "service '%s' is not configured",
+	ErrNoServerDefined:          "no server for domain '%s' configured",
 	ErrCannotPrepareRequest:     "cannot prepare request",
 	ErrHTTPRequestFailed:        "HTTP request failed",
 	ErrProcessingRequestContent: "cannot process request content",
+	ErrContentNotKeyValue:       "content is not key/value",
 	ErrReadingResponse:          "cannot read the HTTP response",
 }
 
