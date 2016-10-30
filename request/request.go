@@ -220,7 +220,10 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 		path = append(path, resourceID)
 	}
 	u.Path = strings.Join(path, "/")
-	// Prepare request.
+	// Prepare request, check the parameters first.
+	if params == nil {
+		params = &Parameters{}
+	}
 	body, err := params.body()
 	if err != nil {
 		return nil, err
