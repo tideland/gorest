@@ -1,12 +1,12 @@
-// Tideland Go REST Server Library - REST Request
+// Tideland Go REST Server Library - Request
 //
 // Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-// The Tideland Go REST Server Library request provides simpler
-// requests to handlers of the Tideland Go REST Server Library world.
+// The request package provides a simple way to handle cross-server
+// requests in the Tideland REST ecosystem.
 package request
 
 //--------------------
@@ -21,9 +21,9 @@ import (
 // VERSION
 //--------------------
 
-// Version returns the version of the REST Audit package.
+// Version returns the version of the REST package.
 func Version() version.Version {
-	return version.New(2, 6, 0, "alpha", "2016-10-28")
+	return version.New(2, 6, 0, "alpha", "2016-10-30")
 }
 
 // EOF
