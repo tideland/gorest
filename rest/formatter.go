@@ -109,8 +109,8 @@ type gobFormatter struct {
 // Write is specified on the Formatter interface.
 func (gf *gobFormatter) Write(status int, data interface{}) error {
 	enc := gob.NewEncoder(gf.job.ResponseWriter())
-	gf.job.ResponseWriter().WriteHeader(status)
 	gf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeGOB)
+	gf.job.ResponseWriter().WriteHeader(status)
 	err := enc.Encode(data)
 	if err != nil {
 		http.Error(gf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
@@ -152,8 +152,8 @@ func (jf *jsonFormatter) Write(status int, data interface{}) error {
 		json.HTMLEscape(&buf, body)
 		body = buf.Bytes()
 	}
-	jf.job.ResponseWriter().WriteHeader(status)
 	jf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeJSON)
+	jf.job.ResponseWriter().WriteHeader(status)
 	_, err = jf.job.ResponseWriter().Write(body)
 	return err
 }
@@ -187,8 +187,8 @@ func (xf *xmlFormatter) Write(status int, data interface{}) error {
 		http.Error(xf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
 		return err
 	}
-	xf.job.ResponseWriter().WriteHeader(status)
 	xf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeXML)
+	xf.job.ResponseWriter().WriteHeader(status)
 	_, err = xf.job.ResponseWriter().Write(body)
 	return err
 }

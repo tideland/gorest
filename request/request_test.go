@@ -15,6 +15,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/tideland/golib/audit"
 	"github.com/tideland/golib/etc"
@@ -28,6 +29,12 @@ import (
 // TESTS
 //--------------------
 
+// data is used for transfer data in the tests.
+type data struct {
+	Index int
+	Name  string
+}
+
 // tests defines requests and asserts.
 var tests = []struct {
 	name     string
@@ -35,14 +42,31 @@ var tests = []struct {
 	resource string
 	id       string
 	params   *request.Parameters
+	expected *data
 }{
 	{
 		name:     "GET for one item formatted in JSON",
 		method:   "GET",
 		resource: "item",
 		id:       "foo",
-		params:   &request.Parameters{
+		params: &request.Parameters{
 			ContentType: rest.ContentTypeJSON,
+		},
+		expected: &data{
+			Index: 0,
+			Name:  "foo",
+		},
+	}, {
+		name:     "GET for one item formatted in XML",
+		method:   "GET",
+		resource: "item",
+		id:       "foo",
+		params: &request.Parameters{
+			ContentType: rest.ContentTypeXML,
+		},
+		expected: &data{
+			Index: 0,
+			Name:  "foo",
 		},
 	},
 }
@@ -60,9 +84,14 @@ func TestRequests(t *testing.T) {
 		switch test.method {
 		case "GET":
 			response, err = caller.Get(test.resource, test.id, test.params)
-			assert.Nil(err)
 		}
-		assert.Logf("response: %+v", response)
+		assert.Nil(err)
+		assert.True(response.HasContentType(test.params.ContentType))
+		var content data
+		err = response.Read(&content)
+		if test.expected != nil {
+			assert.Equal(content.Name, test.expected.Name)
+		}
 	}
 }
 
@@ -88,11 +117,14 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
+	th.assert.Logf("CT: %v", job.Request().Header.Get("Content-Type"))
 	switch {
 	case job.HasContentType(rest.ContentTypeJSON):
-		job.JSON(true).Write(rest.StatusOK, th.item())
+		th.assert.Logf("CT: JSON")
+		job.JSON(true).Write(rest.StatusOK, th.data(job.ResourceID()))
 	case job.HasContentType(rest.ContentTypeXML):
-		job.XML().Write(rest.StatusOK, th.item())
+		th.assert.Logf("CT: XML")
+		job.XML().Write(rest.StatusOK, th.data(job.ResourceID()))
 	}
 	return true, nil
 }
@@ -121,10 +153,10 @@ func (th *TestHandler) Options(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) item() map[string]interface{} {
-	return map[string]interface{}{
-		"index": th.index,
-		"name":  "Item",
+func (th *TestHandler) data(name string) *data {
+	return &data{
+		Index: th.index,
+		Name:  name,
 	}
 }
 
@@ -139,7 +171,8 @@ func newServers(assert audit.Assertion) request.Servers {
 	cfgStr := "{etc {basepath /}{default-domain testing}{default-resource item}}"
 	cfg, err := etc.ReadString(cfgStr)
 	assert.Nil(err)
-	addresses := []string{":12345", ":12346", ":12347", ":12348", ":12349"}
+	// addresses := []string{":12345", ":12346", ":12347", ":12348", ":12349"}
+	addresses := []string{":12345"}
 	servers := request.NewServers()
 	// Start and register each server.
 	for i, address := range addresses {
@@ -154,6 +187,7 @@ func newServers(assert audit.Assertion) request.Servers {
 		}()
 		servers.Add("testing", "http://localhost"+address, nil)
 	}
+	time.Sleep(5 * time.Millisecond)
 	return servers
 }
 
