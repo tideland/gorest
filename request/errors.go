@@ -25,7 +25,9 @@ const (
 	ErrHTTPRequestFailed
 	ErrProcessingRequestContent
 	ErrContentNotKeyValue
-	ErrReadingResponse
+	ErrAnalyzingResponse
+	ErrDecodingResponse
+	ErrInvalidContentType
 )
 
 var errorMessages = errors.Messages{
@@ -34,7 +36,9 @@ var errorMessages = errors.Messages{
 	ErrHTTPRequestFailed:        "HTTP request failed",
 	ErrProcessingRequestContent: "cannot process request content",
 	ErrContentNotKeyValue:       "content is not key/value",
-	ErrReadingResponse:          "cannot read the HTTP response",
+	ErrAnalyzingResponse:        "cannot analyze the HTTP response",
+	ErrDecodingResponse:         "cannot decode the HTTP response",
+	ErrInvalidContentType:       "invalid content type '%s'",
 }
 
 // EOF

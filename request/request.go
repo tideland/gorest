@@ -107,7 +107,7 @@ func FromContext(ctx context.Context) (Servers, bool) {
 }
 
 //--------------------
-// GENERAL HELPERS
+// RESPONSE
 //--------------------
 
 // KeyValues handles keys and values for request headers and cookies.
@@ -118,7 +118,36 @@ type Response struct {
 	Status      int
 	Header      KeyValues
 	ContentType string
-	Content     interface{}
+	Content     []byte
+}
+
+// HasContentType checks the content type regardless of charsets.
+func (r *Response) HasContentType(contentType string) bool {
+	return strings.Contains(r.ContentType, contentType)
+}
+
+// Read decodes the content into the passed data depending
+// on the content type.
+func (r *Response) Read(data interface{}) error {
+	switch {
+	case r.HasContentType(rest.ContentTypeGOB):
+		dec := gob.NewDecoder(bytes.NewBuffer(r.Content))
+		if err := dec.Decode(data); err != nil {
+			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
+		}
+		return nil
+	case r.HasContentType(rest.ContentTypeJSON):
+		if err := json.Unmarshal(r.Content, &data); err != nil {
+			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
+		}
+		return nil
+	case r.HasContentType(rest.ContentTypeXML):
+		if err := xml.Unmarshal(r.Content, &data); err != nil {
+			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
+		}
+		return nil
+	}
+	return errors.New(ErrInvalidContentType, errorMessages, r.ContentType)
 }
 
 //--------------------
@@ -263,7 +292,7 @@ func analyzeResponse(response *http.Response) (*Response, error) {
 	}
 	content, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrReadingResponse, errorMessages)
+		return nil, errors.Annotate(err, ErrAnalyzingResponse, errorMessages)
 	}
 	response.Body.Close()
 	return &Response{
