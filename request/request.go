@@ -185,6 +185,15 @@ func (p *Parameters) body() (io.Reader, error) {
 			if err := enc.Encode(p.Content); err != nil {
 				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
 			}
+		case rest.ContentTypeURLEncoded:
+			values, err := p.values()
+			if err != nil {
+				return nil, err
+			}
+			_, err = buffer.WriteString(values.Encode())
+			if err != nil {
+				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+			}
 		}
 	}
 	return buffer, nil
@@ -210,8 +219,26 @@ func (p *Parameters) values() (url.Values, error) {
 // Caller provides an interface to make calls to
 // configured services.
 type Caller interface {
-	// Get performs a GET request on the defined service.
+	// Get performs a GET request on the defined resource.
 	Get(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Head performs a HEAD request on the defined resource.
+	Head(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Put performs a PUT request on the defined resource.
+	Put(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Post performs a POST request on the defined resource.
+	Post(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Patch performs a PATCH request on the defined resource.
+	Patch(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Delete performs a DELETE request on the defined resource.
+	Delete(resource, resourceID string, params *Parameters) (*Response, error)
+
+	// Options performs a OPTIONS request on the defined resource.
+	Options(resource, resourceID string, params *Parameters) (*Response, error)
 }
 
 // caller implements the Caller interface.
@@ -228,6 +255,36 @@ func newCaller(domain string, srvs []*server) Caller {
 // Get implements the Caller interface.
 func (c *caller) Get(resource, resourceID string, params *Parameters) (*Response, error) {
 	return c.request("GET", resource, resourceID, params)
+}
+
+// Head implements the Caller interface.
+func (c *caller) Head(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("HEAD", resource, resourceID, params)
+}
+
+// Put implements the Caller interface.
+func (c *caller) Put(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("PUT", resource, resourceID, params)
+}
+
+// Post implements the Caller interface.
+func (c *caller) Post(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("POST", resource, resourceID, params)
+}
+
+// Patch implements the Caller interface.
+func (c *caller) Patch(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("PATCH", resource, resourceID, params)
+}
+
+// Delete implements the Caller interface.
+func (c *caller) Delete(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("DELETE", resource, resourceID, params)
+}
+
+// Options implements the Caller interface.
+func (c *caller) Options(resource, resourceID string, params *Parameters) (*Response, error) {
+	return c.request("OPTIONS", resource, resourceID, params)
 }
 
 // request performs all requests.
@@ -274,6 +331,9 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 	}
 	if params.Token != nil {
 		request = jwt.AddTokenToRequest(request, params.Token)
+	}
+	if params.ContentType != "" {
+		request.Header.Set("Content-Type", params.ContentType)
 	}
 	// Perform request.
 	response, err := client.Do(request)
