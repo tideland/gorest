@@ -13,7 +13,9 @@ package request_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -42,7 +44,7 @@ var tests = []struct {
 	resource string
 	id       string
 	params   *request.Parameters
-	expected *data
+	check    func(assert audit.Assertion, response *request.Response)
 }{
 	{
 		name:     "GET for one item formatted in JSON",
@@ -50,11 +52,14 @@ var tests = []struct {
 		resource: "item",
 		id:       "foo",
 		params: &request.Parameters{
-			ContentType: rest.ContentTypeJSON,
+			Accept: rest.ContentTypeJSON,
 		},
-		expected: &data{
-			Index: 0,
-			Name:  "foo",
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.True(response.HasContentType(rest.ContentTypeJSON))
+			var content data
+			err := response.Read(&content)
+			assert.Nil(err)
+			assert.Equal(content.Name, "foo")
 		},
 	}, {
 		name:     "GET for one item formatted in XML",
@@ -62,11 +67,37 @@ var tests = []struct {
 		resource: "item",
 		id:       "foo",
 		params: &request.Parameters{
-			ContentType: rest.ContentTypeXML,
+			Accept: rest.ContentTypeXML,
 		},
-		expected: &data{
-			Index: 0,
-			Name:  "foo",
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.True(response.HasContentType(rest.ContentTypeXML))
+			var content data
+			err := response.Read(&content)
+			assert.Nil(err)
+			assert.Equal(content.Name, "foo")
+		},
+	}, {
+		name:     "GET for one item formatted URL encoded",
+		method:   "GET",
+		resource: "item",
+		id:       "foo",
+		params: &request.Parameters{
+			Accept: rest.ContentTypeURLEncoded,
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.True(response.HasContentType(rest.ContentTypeURLEncoded))
+			values := url.Values{}
+			err := response.Read(values)
+			assert.Nil(err)
+			assert.Equal(values["name"][0], "foo")
+		},
+	}, {
+		name:     "HEAD returning the resource ID as header",
+		method:   "HEAD",
+		resource: "item",
+		id:       "foo",
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Header["Resource-Id"], "foo")
 		},
 	},
 }
@@ -74,7 +105,7 @@ var tests = []struct {
 // TestRequests runs the different request tests.
 func TestRequests(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
-	servers := newServers(assert)
+	servers := newServers(assert, 12345, 12346)
 	// Run the tests.
 	for i, test := range tests {
 		assert.Logf("test #%d: %s", i, test.name)
@@ -84,14 +115,21 @@ func TestRequests(t *testing.T) {
 		switch test.method {
 		case "GET":
 			response, err = caller.Get(test.resource, test.id, test.params)
+		case "HEAD":
+			response, err = caller.Head(test.resource, test.id, test.params)
+		case "PUT":
+			response, err = caller.Put(test.resource, test.id, test.params)
+		case "POST":
+			response, err = caller.Post(test.resource, test.id, test.params)
+		case "PATCH":
+			response, err = caller.Patch(test.resource, test.id, test.params)
+		case "DELETE":
+			response, err = caller.Delete(test.resource, test.id, test.params)
+		case "OPTIONS":
+			response, err = caller.Options(test.resource, test.id, test.params)
 		}
 		assert.Nil(err)
-		assert.True(response.HasContentType(test.params.ContentType))
-		var content data
-		err = response.Read(&content)
-		if test.expected != nil {
-			assert.Equal(content.Name, test.expected.Name)
-		}
+		test.check(assert, response)
 	}
 }
 
@@ -117,19 +155,26 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
-	th.assert.Logf("CT: %v", job.Request().Header.Get("Content-Type"))
+	th.assert.Logf("HANDLER #%d: GET", th.index)
 	switch {
-	case job.HasContentType(rest.ContentTypeJSON):
-		th.assert.Logf("CT: JSON")
+	case job.AcceptsContentType(rest.ContentTypeJSON):
 		job.JSON(true).Write(rest.StatusOK, th.data(job.ResourceID()))
-	case job.HasContentType(rest.ContentTypeXML):
-		th.assert.Logf("CT: XML")
+	case job.AcceptsContentType(rest.ContentTypeXML):
 		job.XML().Write(rest.StatusOK, th.data(job.ResourceID()))
+	case job.AcceptsContentType(rest.ContentTypeURLEncoded):
+		values := url.Values{}
+		values.Set("name", job.ResourceID())
+		values.Set("index", fmt.Sprintf("%d", th.index))
+		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypeURLEncoded)
+		job.ResponseWriter().Write([]byte(values.Encode()))
 	}
 	return true, nil
 }
 
 func (th *TestHandler) Head(job rest.Job) (bool, error) {
+	th.assert.Logf("HANDLER #%d: HEAD", th.index)
+	job.ResponseWriter().Header().Set("Resource-Id", job.ResourceID())
+	job.ResponseWriter().WriteHeader(rest.StatusOK)
 	return true, nil
 }
 
@@ -165,23 +210,22 @@ func (th *TestHandler) data(name string) *data {
 //--------------------
 
 // newServers starts the server map for the requests.
-func newServers(assert audit.Assertion) request.Servers {
+func newServers(assert audit.Assertion, ports ...int) request.Servers {
 	// Preparation.
 	logger.SetLevel(logger.LevelDebug)
 	cfgStr := "{etc {basepath /}{default-domain testing}{default-resource item}}"
 	cfg, err := etc.ReadString(cfgStr)
 	assert.Nil(err)
-	// addresses := []string{":12345", ":12346", ":12347", ":12348", ":12349"}
-	addresses := []string{":12345"}
 	servers := request.NewServers()
 	// Start and register each server.
-	for i, address := range addresses {
+	for i, port := range ports {
 		mux := rest.NewMultiplexer(context.Background(), cfg)
 		h := NewTestHandler(i, assert)
 		err = mux.Register("testing", "item", h)
 		assert.Nil(err)
 		err = mux.Register("testing", "items", h)
 		assert.Nil(err)
+		address := fmt.Sprintf(":%d", port)
 		go func() {
 			http.ListenAndServe(address, mux)
 		}()
