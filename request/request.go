@@ -146,6 +146,28 @@ func (r *Response) Read(data interface{}) error {
 			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
 		}
 		return nil
+	case r.HasContentType(rest.ContentTypeURLEncoded):
+		values, err := url.ParseQuery(string(r.Content))
+		if err != nil {
+			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
+		}
+		// Check for data type url.Values.
+		duv, ok := data.(url.Values)
+		if ok {
+			for key, value := range values {
+				duv[key] = value
+			}
+			return nil
+		}
+		// Check for data type KeyValues.
+		kvv, ok := data.(KeyValues)
+		if !ok {
+			return errors.New(ErrDecodingResponse, errorMessages)
+		}
+		for key, value := range values {
+			kvv[key] = strings.Join(value, " / ")
+		}
+		return nil
 	}
 	return errors.New(ErrInvalidContentType, errorMessages, r.ContentType)
 }
@@ -159,41 +181,43 @@ type Parameters struct {
 	Token       jwt.JWT
 	ContentType string
 	Content     interface{}
+	Accept      string
 }
 
 // body returns the content as body data depending on
 // the content type.
 func (p *Parameters) body() (io.Reader, error) {
 	buffer := bytes.NewBuffer(nil)
-	if p.Content != nil {
-		// Process content based on content type.
-		switch p.ContentType {
-		case rest.ContentTypeXML:
-			tmp, err := xml.Marshal(p.Content)
-			if err != nil {
-				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-			buffer.Write(tmp)
-		case rest.ContentTypeJSON:
-			tmp, err := json.Marshal(p.Content)
-			if err != nil {
-				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-			buffer.Write(tmp)
-		case rest.ContentTypeGOB:
-			enc := gob.NewEncoder(buffer)
-			if err := enc.Encode(p.Content); err != nil {
-				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
-		case rest.ContentTypeURLEncoded:
-			values, err := p.values()
-			if err != nil {
-				return nil, err
-			}
-			_, err = buffer.WriteString(values.Encode())
-			if err != nil {
-				return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
-			}
+	if p.Content == nil {
+		return buffer, nil
+	}
+	// Process content based on content type.
+	switch p.ContentType {
+	case rest.ContentTypeXML:
+		tmp, err := xml.Marshal(p.Content)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+		}
+		buffer.Write(tmp)
+	case rest.ContentTypeJSON:
+		tmp, err := json.Marshal(p.Content)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+		}
+		buffer.Write(tmp)
+	case rest.ContentTypeGOB:
+		enc := gob.NewEncoder(buffer)
+		if err := enc.Encode(p.Content); err != nil {
+			return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
+		}
+	case rest.ContentTypeURLEncoded:
+		values, err := p.values()
+		if err != nil {
+			return nil, err
+		}
+		_, err = buffer.WriteString(values.Encode())
+		if err != nil {
+			return nil, errors.Annotate(err, ErrProcessingRequestContent, errorMessages)
 		}
 	}
 	return buffer, nil
@@ -201,9 +225,18 @@ func (p *Parameters) body() (io.Reader, error) {
 
 // values returns the content as URL encoded values.
 func (p *Parameters) values() (url.Values, error) {
+	if p.Content == nil {
+		return url.Values{}, nil
+	}
+	// Check if type is already ok.
+	urlvs, ok := p.Content.(url.Values)
+	if ok {
+		return urlvs, nil
+	}
+	// Check for simple key/values.
 	kvs, ok := p.Content.(KeyValues)
 	if !ok {
-		return nil, errors.New(ErrContentNotKeyValue, errorMessages)
+		return nil, errors.New(ErrInvalidContent, errorMessages)
 	}
 	values := url.Values{}
 	for key, value := range kvs {
@@ -289,6 +322,9 @@ func (c *caller) Options(resource, resourceID string, params *Parameters) (*Resp
 
 // request performs all requests.
 func (c *caller) request(method, resource, resourceID string, params *Parameters) (*Response, error) {
+	if params == nil {
+		params = &Parameters{}
+	}
 	// Prepare client.
 	// TODO Mue 2016-10-28 Add more algorithms than just random selection.
 	srv := c.srvs[rand.Intn(len(c.srvs))]
@@ -307,33 +343,39 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 	}
 	u.Path = strings.Join(path, "/")
 	// Prepare request, check the parameters first.
-	if params == nil {
-		params = &Parameters{}
-	}
-	body, err := params.body()
-	if err != nil {
-		return nil, err
-	}
-	request, err := http.NewRequest(method, u.String(), body)
-	if err != nil {
-		return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
-	}
-	switch params.ContentType {
-	case rest.ContentTypeURLEncoded:
+	var request *http.Request
+	if method == "GET" || method == "HEAD" {
+		// These allow only URL encoded.
+		request, err = http.NewRequest(method, u.String(), nil)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
+		}
 		values, err := params.values()
 		if err != nil {
 			return nil, err
 		}
 		request.URL.RawQuery = values.Encode()
-		request.Header.Set("Content-Type", params.ContentType)
-	case rest.ContentTypeGOB, rest.ContentTypeJSON, rest.ContentTypeXML:
+		request.Header.Set("Content-Type", rest.ContentTypeURLEncoded)
+	} else {
+		// Here use the body for content.
+		body, err := params.body()
+		if err != nil {
+			return nil, err
+		}
+		request, err = http.NewRequest(method, u.String(), body)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
+		}
 		request.Header.Set("Content-Type", params.ContentType)
 	}
 	if params.Token != nil {
 		request = jwt.AddTokenToRequest(request, params.Token)
 	}
-	if params.ContentType != "" {
-		request.Header.Set("Content-Type", params.ContentType)
+	if params.Accept == "" {
+		params.Accept = params.ContentType
+	}
+	if params.Accept != "" {
+		request.Header.Set("Accept", params.Accept)
 	}
 	// Perform request.
 	response, err := client.Do(request)

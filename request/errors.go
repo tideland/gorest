@@ -24,7 +24,7 @@ const (
 	ErrCannotPrepareRequest
 	ErrHTTPRequestFailed
 	ErrProcessingRequestContent
-	ErrContentNotKeyValue
+	ErrInvalidContent
 	ErrAnalyzingResponse
 	ErrDecodingResponse
 	ErrInvalidContentType
@@ -35,7 +35,7 @@ var errorMessages = errors.Messages{
 	ErrCannotPrepareRequest:     "cannot prepare request",
 	ErrHTTPRequestFailed:        "HTTP request failed",
 	ErrProcessingRequestContent: "cannot process request content",
-	ErrContentNotKeyValue:       "content is not key/value",
+	ErrInvalidContent:           "content invalid for URL encoding",
 	ErrAnalyzingResponse:        "cannot analyze the HTTP response",
 	ErrDecodingResponse:         "cannot decode the HTTP response",
 	ErrInvalidContentType:       "invalid content type '%s'",
