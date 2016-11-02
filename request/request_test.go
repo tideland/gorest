@@ -31,12 +31,6 @@ import (
 // TESTS
 //--------------------
 
-// data is used for transfer data in the tests.
-type data struct {
-	Index int
-	Name  string
-}
-
 // tests defines requests and asserts.
 var tests = []struct {
 	name     string
@@ -44,6 +38,7 @@ var tests = []struct {
 	resource string
 	id       string
 	params   *request.Parameters
+	show     bool
 	check    func(assert audit.Assertion, response *request.Response)
 }{
 	{
@@ -55,8 +50,9 @@ var tests = []struct {
 			Accept: rest.ContentTypeJSON,
 		},
 		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
-			var content data
+			content := Content{}
 			err := response.Read(&content)
 			assert.Nil(err)
 			assert.Equal(content.Name, "foo")
@@ -70,8 +66,9 @@ var tests = []struct {
 			Accept: rest.ContentTypeXML,
 		},
 		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeXML))
-			var content data
+			content := Content{}
 			err := response.Read(&content)
 			assert.Nil(err)
 			assert.Equal(content.Name, "foo")
@@ -85,6 +82,7 @@ var tests = []struct {
 			Accept: rest.ContentTypeURLEncoded,
 		},
 		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeURLEncoded))
 			values := url.Values{}
 			err := response.Read(values)
@@ -92,12 +90,49 @@ var tests = []struct {
 			assert.Equal(values["name"][0], "foo")
 		},
 	}, {
-		name:     "HEAD returning the resource ID as header",
+		name:     "HEAD returns the resource ID as header",
 		method:   "HEAD",
 		resource: "item",
 		id:       "foo",
 		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
 			assert.Equal(response.Header["Resource-Id"], "foo")
+		},
+	}, {
+		name:     "PUT returns content based on sent content",
+		method:   "PUT",
+		resource: "item",
+		id:       "foo",
+		params: &request.Parameters{
+			ContentType: rest.ContentTypeJSON,
+			Content: &Content{
+				Version: 1,
+			},
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
+			assert.True(response.HasContentType(rest.ContentTypeJSON))
+			content := Content{}
+			err := response.Read(&content)
+			assert.Nil(err)
+			assert.Equal(content.Version, 2)
+			assert.Equal(content.Name, "foo")
+		},
+	}, {
+		name:     "POST returns the location header based on sent content",
+		method:   "POST",
+		resource: "items",
+		params: &request.Parameters{
+			ContentType: rest.ContentTypeJSON,
+			Content: &Content{
+				Version: 1,
+				Name:    "bar",
+			},
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusCreated)
+			assert.Equal(response.Header["Location"], "/testing/item/bar")
 		},
 	},
 }
@@ -129,6 +164,9 @@ func TestRequests(t *testing.T) {
 			response, err = caller.Options(test.resource, test.id, test.params)
 		}
 		assert.Nil(err)
+		if test.show {
+			assert.Logf("response: %#v", response)
+		}
 		test.check(assert, response)
 	}
 }
@@ -137,6 +175,14 @@ func TestRequests(t *testing.T) {
 // TEST HANDLER
 //--------------------
 
+// Content is used for the data transfer.
+type Content struct {
+	Index   int
+	Version int
+	Name    string
+}
+
+// TestHandler handles all the test requests.
 type TestHandler struct {
 	index  int
 	assert audit.Assertion
@@ -155,16 +201,22 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
-	th.assert.Logf("HANDLER #%d: GET", th.index)
+	th.assert.Logf("handler #%d: GET", th.index)
+	createContent := func() *Content {
+		return &Content{
+			Index: th.index,
+			Name:  job.ResourceID(),
+		}
+	}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
-		job.JSON(true).Write(rest.StatusOK, th.data(job.ResourceID()))
+		job.JSON(true).Write(rest.StatusOK, createContent())
 	case job.AcceptsContentType(rest.ContentTypeXML):
-		job.XML().Write(rest.StatusOK, th.data(job.ResourceID()))
+		job.XML().Write(rest.StatusOK, createContent())
 	case job.AcceptsContentType(rest.ContentTypeURLEncoded):
 		values := url.Values{}
-		values.Set("name", job.ResourceID())
 		values.Set("index", fmt.Sprintf("%d", th.index))
+		values.Set("name", job.ResourceID())
 		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypeURLEncoded)
 		job.ResponseWriter().Write([]byte(values.Encode()))
 	}
@@ -172,17 +224,31 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 }
 
 func (th *TestHandler) Head(job rest.Job) (bool, error) {
-	th.assert.Logf("HANDLER #%d: HEAD", th.index)
+	th.assert.Logf("handler #%d: HEAD", th.index)
 	job.ResponseWriter().Header().Set("Resource-Id", job.ResourceID())
 	job.ResponseWriter().WriteHeader(rest.StatusOK)
 	return true, nil
 }
 
 func (th *TestHandler) Put(job rest.Job) (bool, error) {
+	th.assert.Logf("handler #%d: PUT", th.index)
+	content := Content{}
+	err := job.JSON(true).Read(&content)
+	th.assert.Nil(err)
+	content.Version += 1
+	content.Name = job.ResourceID()
+	job.JSON(true).Write(rest.StatusOK, content)
 	return true, nil
 }
 
 func (th *TestHandler) Post(job rest.Job) (bool, error) {
+	th.assert.Logf("handler #%d: POST", th.index)
+	content := Content{}
+	err := job.JSON(true).Read(&content)
+	th.assert.Nil(err)
+	location := job.InternalPath(job.Domain(), "item", content.Name)
+	job.ResponseWriter().Header().Set("Location", location)
+	job.ResponseWriter().WriteHeader(rest.StatusCreated)
 	return true, nil
 }
 
@@ -196,13 +262,6 @@ func (th *TestHandler) Delete(job rest.Job) (bool, error) {
 
 func (th *TestHandler) Options(job rest.Job) (bool, error) {
 	return true, nil
-}
-
-func (th *TestHandler) data(name string) *data {
-	return &data{
-		Index: th.index,
-		Name:  name,
-	}
 }
 
 //--------------------
