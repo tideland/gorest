@@ -134,13 +134,67 @@ var tests = []struct {
 			assert.Equal(response.Status, rest.StatusCreated)
 			assert.Equal(response.Header["Location"], "/testing/item/bar")
 		},
+	}, {
+		name:     "PATCH returns content and header based on sent content",
+		method:   "PATCH",
+		resource: "item",
+		id:       "bar",
+		params: &request.Parameters{
+			ContentType: rest.ContentTypeJSON,
+			Content: &Content{
+				Version: 1,
+			},
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
+			assert.Equal(response.Header["Resource-Id"], "bar")
+			assert.True(response.HasContentType(rest.ContentTypeJSON))
+			content := Content{}
+			err := response.Read(&content)
+			assert.Nil(err)
+			assert.Equal(content.Version, 2)
+			assert.Equal(content.Name, "bar")
+		},
+	}, {
+		name:     "DELETE for one item, current data formatted in JSON",
+		method:   "DELETE",
+		resource: "item",
+		id:       "foo",
+		params: &request.Parameters{
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
+			assert.True(response.HasContentType(rest.ContentTypeJSON))
+			content := Content{}
+			err := response.Read(&content)
+			assert.Nil(err)
+			assert.Equal(content.Version, 5)
+			assert.Equal(content.Name, "foo")
+		},
+	}, {
+		name:     "OPTIONS for one resource formatted in JSON",
+		method:   "OPTIONS",
+		resource: "item",
+		params: &request.Parameters{
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response *request.Response) {
+			assert.Equal(response.Status, rest.StatusOK)
+			assert.True(response.HasContentType(rest.ContentTypeJSON))
+			options := Options{}
+			err := response.Read(&options)
+			assert.Nil(err)
+			assert.Equal(options.Methods, "GET, HEAD, PUT, POST, PATCH, DELETE")
+		},
 	},
 }
 
 // TestRequests runs the different request tests.
 func TestRequests(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
-	servers := newServers(assert, 12345, 12346)
+	servers := newServers(assert, 12345, 12346, 12346)
 	// Run the tests.
 	for i, test := range tests {
 		assert.Logf("test #%d: %s", i, test.name)
@@ -162,6 +216,8 @@ func TestRequests(t *testing.T) {
 			response, err = caller.Delete(test.resource, test.id, test.params)
 		case "OPTIONS":
 			response, err = caller.Options(test.resource, test.id, test.params)
+		default:
+			assert.Fail("illegal method", test.method)
 		}
 		assert.Nil(err)
 		if test.show {
@@ -175,11 +231,16 @@ func TestRequests(t *testing.T) {
 // TEST HANDLER
 //--------------------
 
-// Content is used for the data transfer.
+// Content is used for the data transfer of contents.
 type Content struct {
 	Index   int
 	Version int
 	Name    string
+}
+
+// Options is used for the data transfer of options.
+type Options struct {
+	Methods string
 }
 
 // TestHandler handles all the test requests.
@@ -202,20 +263,20 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	th.assert.Logf("handler #%d: GET", th.index)
-	createContent := func() *Content {
-		return &Content{
-			Index: th.index,
-			Name:  job.ResourceID(),
-		}
+	content := &Content{
+		Index:   th.index,
+		Version: 1,
+		Name:    job.ResourceID(),
 	}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
-		job.JSON(true).Write(rest.StatusOK, createContent())
+		job.JSON(true).Write(rest.StatusOK, content)
 	case job.AcceptsContentType(rest.ContentTypeXML):
-		job.XML().Write(rest.StatusOK, createContent())
+		job.XML().Write(rest.StatusOK, content)
 	case job.AcceptsContentType(rest.ContentTypeURLEncoded):
 		values := url.Values{}
 		values.Set("index", fmt.Sprintf("%d", th.index))
+		values.Set("version", "1")
 		values.Set("name", job.ResourceID())
 		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypeURLEncoded)
 		job.ResponseWriter().Write([]byte(values.Encode()))
@@ -253,14 +314,33 @@ func (th *TestHandler) Post(job rest.Job) (bool, error) {
 }
 
 func (th *TestHandler) Patch(job rest.Job) (bool, error) {
+	th.assert.Logf("handler #%d: PATCH", th.index)
+	content := Content{}
+	err := job.JSON(true).Read(&content)
+	th.assert.Nil(err)
+	content.Version += 1
+	content.Name = job.ResourceID()
+	job.JSON(true).Write(rest.StatusOK, content, rest.KeyValue{"Resource-Id", job.ResourceID()})
 	return true, nil
 }
 
 func (th *TestHandler) Delete(job rest.Job) (bool, error) {
+	th.assert.Logf("handler #%d: DELETE", th.index)
+	content := &Content{
+		Index:   th.index,
+		Version: 5,
+		Name:    job.ResourceID(),
+	}
+	job.JSON(true).Write(rest.StatusOK, content)
 	return true, nil
 }
 
 func (th *TestHandler) Options(job rest.Job) (bool, error) {
+	th.assert.Logf("handler #%d: OPTIONS", th.index)
+	options := &Options{
+		Methods: "GET, HEAD, PUT, POST, PATCH, DELETE",
+	}
+	job.JSON(true).Write(rest.StatusOK, options)
 	return true, nil
 }
 
