@@ -76,8 +76,9 @@ type envelope struct {
 
 type Formatter interface {
 	// Write encodes the passed data to implementers format and writes
-	// it with the passed status code to the response writer.
-	Write(status int, data interface{}) error
+	// it with the passed status code and possible header values to the
+	// response writer.
+	Write(status int, data interface{}, headers ...KeyValue) error
 
 	// Read checks if the request content type matches the implementers
 	// format, reads its body and decodes it to the value pointed to by
@@ -107,8 +108,11 @@ type gobFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (gf *gobFormatter) Write(status int, data interface{}) error {
+func (gf *gobFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
 	enc := gob.NewEncoder(gf.job.ResponseWriter())
+	for _, header := range headers {
+		gf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
+	}
 	gf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeGOB)
 	gf.job.ResponseWriter().WriteHeader(status)
 	err := enc.Encode(data)
@@ -141,7 +145,7 @@ type jsonFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (jf *jsonFormatter) Write(status int, data interface{}) error {
+func (jf *jsonFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
 	body, err := json.Marshal(data)
 	if err != nil {
 		http.Error(jf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
@@ -151,6 +155,9 @@ func (jf *jsonFormatter) Write(status int, data interface{}) error {
 		var buf bytes.Buffer
 		json.HTMLEscape(&buf, body)
 		body = buf.Bytes()
+	}
+	for _, header := range headers {
+		jf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	jf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeJSON)
 	jf.job.ResponseWriter().WriteHeader(status)
@@ -181,11 +188,14 @@ type xmlFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (xf *xmlFormatter) Write(status int, data interface{}) error {
+func (xf *xmlFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
 	body, err := xml.Marshal(data)
 	if err != nil {
 		http.Error(xf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
 		return err
+	}
+	for _, header := range headers {
+		xf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	xf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeXML)
 	xf.job.ResponseWriter().WriteHeader(status)
