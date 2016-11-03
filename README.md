@@ -13,7 +13,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.5.2
+Version 2.6.0
 
 ## Packages
 
