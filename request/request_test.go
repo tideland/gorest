@@ -39,7 +39,7 @@ var tests = []struct {
 	id       string
 	params   *request.Parameters
 	show     bool
-	check    func(assert audit.Assertion, response *request.Response)
+	check    func(assert audit.Assertion, response request.Response)
 }{
 	{
 		name:     "GET for one item formatted in JSON",
@@ -49,8 +49,8 @@ var tests = []struct {
 		params: &request.Parameters{
 			Accept: rest.ContentTypeJSON,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
 			content := Content{}
 			err := response.Read(&content)
@@ -65,8 +65,8 @@ var tests = []struct {
 		params: &request.Parameters{
 			Accept: rest.ContentTypeXML,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeXML))
 			content := Content{}
 			err := response.Read(&content)
@@ -81,8 +81,8 @@ var tests = []struct {
 		params: &request.Parameters{
 			Accept: rest.ContentTypeURLEncoded,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeURLEncoded))
 			values := url.Values{}
 			err := response.Read(values)
@@ -94,9 +94,9 @@ var tests = []struct {
 		method:   "HEAD",
 		resource: "item",
 		id:       "foo",
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
-			assert.Equal(response.Header["Resource-Id"], "foo")
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
+			assert.Equal(response.Header().Get("Resource-Id"), "foo")
 		},
 	}, {
 		name:     "PUT returns content based on sent content",
@@ -110,8 +110,8 @@ var tests = []struct {
 			},
 			Accept: rest.ContentTypeJSON,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
 			content := Content{}
 			err := response.Read(&content)
@@ -130,9 +130,9 @@ var tests = []struct {
 				Name:    "bar",
 			},
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusCreated)
-			assert.Equal(response.Header["Location"], "/testing/item/bar")
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusCreated)
+			assert.Equal(response.Header().Get("Location"), "/testing/item/bar")
 		},
 	}, {
 		name:     "PATCH returns content and header based on sent content",
@@ -146,9 +146,9 @@ var tests = []struct {
 			},
 			Accept: rest.ContentTypeJSON,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
-			assert.Equal(response.Header["Resource-Id"], "bar")
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
+			assert.Equal(response.Header().Get("Resource-Id"), "bar")
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
 			content := Content{}
 			err := response.Read(&content)
@@ -164,8 +164,8 @@ var tests = []struct {
 		params: &request.Parameters{
 			Accept: rest.ContentTypeJSON,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
 			content := Content{}
 			err := response.Read(&content)
@@ -180,8 +180,8 @@ var tests = []struct {
 		params: &request.Parameters{
 			Accept: rest.ContentTypeJSON,
 		},
-		check: func(assert audit.Assertion, response *request.Response) {
-			assert.Equal(response.Status, rest.StatusOK)
+		check: func(assert audit.Assertion, response request.Response) {
+			assert.Equal(response.StatusCode(), rest.StatusOK)
 			assert.True(response.HasContentType(rest.ContentTypeJSON))
 			options := Options{}
 			err := response.Read(&options)
@@ -200,7 +200,7 @@ func TestRequests(t *testing.T) {
 		assert.Logf("test #%d: %s", i, test.name)
 		caller, err := servers.Caller("testing")
 		assert.Nil(err)
-		var response *request.Response
+		var response request.Response
 		switch test.method {
 		case "GET":
 			response, err = caller.Get(test.resource, test.id, test.params)
