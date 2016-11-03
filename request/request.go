@@ -131,20 +131,19 @@ type Response interface {
 
 // response implements Response.
 type response struct {
-	statusCode  int
-	header      http.Header
+	httpResp    *http.Response
 	contentType string
 	content     []byte
 }
 
 // StatusCode implements the Response interface.
 func (r *response) StatusCode() int {
-	return r.statusCode
+	return r.httpResp.StatusCode
 }
 
 // Header implements the Response interface.
 func (r *response) Header() http.Header {
-	return r.header
+	return r.httpResp.Header
 }
 
 // HasContentType implements the Response interface.
@@ -419,8 +418,7 @@ func analyzeResponse(resp *http.Response) (Response, error) {
 	}
 	resp.Body.Close()
 	return &response{
-		statusCode:  resp.StatusCode,
-		header:      resp.Header,
+		httpResp:    resp,
 		contentType: resp.Header.Get("Content-Type"),
 		content:     content,
 	}, nil
