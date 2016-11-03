@@ -23,6 +23,7 @@ import (
 	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
 
+	"github.com/tideland/gorest/jwt"
 	"github.com/tideland/gorest/request"
 	"github.com/tideland/gorest/rest"
 )
@@ -99,11 +100,12 @@ var tests = []struct {
 			assert.Equal(response.Header().Get("Resource-Id"), "foo")
 		},
 	}, {
-		name:     "PUT returns content based on sent content",
+		name:     "PUT returns content based on sent content, wants JWT",
 		method:   "PUT",
 		resource: "item",
 		id:       "foo",
 		params: &request.Parameters{
+			Token:       createToken(),
 			ContentType: rest.ContentTypeJSON,
 			Content: &Content{
 				Version: 1,
@@ -293,8 +295,13 @@ func (th *TestHandler) Head(job rest.Job) (bool, error) {
 
 func (th *TestHandler) Put(job rest.Job) (bool, error) {
 	th.assert.Logf("handler #%d: PUT", th.index)
+	token, err := jwt.DecodeFromJob(job)
+	th.assert.Nil(err)
+	name, ok := token.Claims().GetString("name")
+	th.assert.True(ok)
+	th.assert.Equal(name, "John Doe")
 	content := Content{}
-	err := job.JSON(true).Read(&content)
+	err = job.JSON(true).Read(&content)
 	th.assert.Nil(err)
 	content.Version += 1
 	content.Name = job.ResourceID()
@@ -345,7 +352,7 @@ func (th *TestHandler) Options(job rest.Job) (bool, error) {
 }
 
 //--------------------
-// SERVER
+// HELPERS
 //--------------------
 
 // newServers starts the server map for the requests.
@@ -372,6 +379,19 @@ func newServers(assert audit.Assertion, ports ...int) request.Servers {
 	}
 	time.Sleep(5 * time.Millisecond)
 	return servers
+}
+
+// createToken creates a test token.
+func createToken() jwt.JWT {
+	claims := jwt.NewClaims()
+	claims.SetSubject("1234567890")
+	claims.Set("name", "John Doe")
+	claims.Set("admin", true)
+	token, err := jwt.Encode(claims, []byte("secret"), jwt.HS512)
+	if err != nil {
+		panic(err)
+	}
+	return token
 }
 
 // EOF
