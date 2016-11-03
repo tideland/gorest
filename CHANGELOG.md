@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-11-03
+
+- Added *request* package for more convenient requests to REST APIs
+
 ## 2016-10-25
 
 - Fixed missing feedback after JWT authorization denial
