@@ -114,40 +114,65 @@ func FromContext(ctx context.Context) (Servers, bool) {
 type KeyValues map[string]string
 
 // Response wraps all infos of a test response.
-type Response struct {
-	Status      int
-	Header      KeyValues
-	ContentType string
-	Content     []byte
+type Response interface {
+	// StatusCode returns the HTTP status code of the response.
+	StatusCode() int
+
+	// Header returns the HTTP header of the response.
+	Header() http.Header
+
+	// HasContentType checks the content type regardless of charsets.
+	HasContentType(contentType string) bool
+
+	// Read decodes the content into the passed data depending
+	// on the content type.
+	Read(data interface{}) error
 }
 
-// HasContentType checks the content type regardless of charsets.
-func (r *Response) HasContentType(contentType string) bool {
-	return strings.Contains(r.ContentType, contentType)
+// response implements Response.
+type response struct {
+	statusCode  int
+	header      http.Header
+	contentType string
+	content     []byte
 }
 
-// Read decodes the content into the passed data depending
-// on the content type.
-func (r *Response) Read(data interface{}) error {
+// StatusCode implements the Response interface.
+func (r *response) StatusCode() int {
+	return r.statusCode
+}
+
+// Header implements the Response interface.
+func (r *response) Header() http.Header {
+	return r.header
+}
+
+// HasContentType implements the Response interface.
+func (r *response) HasContentType(contentType string) bool {
+	return strings.Contains(r.contentType, contentType)
+}
+
+// Read implements the Response interface.
+func (r *response) Read(data interface{}) error {
 	switch {
 	case r.HasContentType(rest.ContentTypeGOB):
-		dec := gob.NewDecoder(bytes.NewBuffer(r.Content))
+		dec := gob.NewDecoder(bytes.NewBuffer(r.content))
 		if err := dec.Decode(data); err != nil {
 			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
 		}
 		return nil
 	case r.HasContentType(rest.ContentTypeJSON):
-		if err := json.Unmarshal(r.Content, &data); err != nil {
+		if err := json.Unmarshal(r.content, &data); err != nil {
 			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
 		}
 		return nil
 	case r.HasContentType(rest.ContentTypeXML):
-		if err := xml.Unmarshal(r.Content, &data); err != nil {
+		if err := xml.Unmarshal(r.content, &data); err != nil {
 			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
 		}
 		return nil
 	case r.HasContentType(rest.ContentTypeURLEncoded):
-		values, err := url.ParseQuery(string(r.Content))
+		values, err := url.ParseQuery(string(r.content))
 		if err != nil {
 			return errors.Annotate(err, ErrDecodingResponse, errorMessages)
 		}
@@ -169,7 +194,7 @@ func (r *Response) Read(data interface{}) error {
 		}
 		return nil
 	}
-	return errors.New(ErrInvalidContentType, errorMessages, r.ContentType)
+	return errors.New(ErrInvalidContentType, errorMessages, r.contentType)
 }
 
 //--------------------
@@ -253,25 +278,25 @@ func (p *Parameters) values() (url.Values, error) {
 // configured services.
 type Caller interface {
 	// Get performs a GET request on the defined resource.
-	Get(resource, resourceID string, params *Parameters) (*Response, error)
+	Get(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Head performs a HEAD request on the defined resource.
-	Head(resource, resourceID string, params *Parameters) (*Response, error)
+	Head(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Put performs a PUT request on the defined resource.
-	Put(resource, resourceID string, params *Parameters) (*Response, error)
+	Put(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Post performs a POST request on the defined resource.
-	Post(resource, resourceID string, params *Parameters) (*Response, error)
+	Post(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Patch performs a PATCH request on the defined resource.
-	Patch(resource, resourceID string, params *Parameters) (*Response, error)
+	Patch(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Delete performs a DELETE request on the defined resource.
-	Delete(resource, resourceID string, params *Parameters) (*Response, error)
+	Delete(resource, resourceID string, params *Parameters) (Response, error)
 
 	// Options performs a OPTIONS request on the defined resource.
-	Options(resource, resourceID string, params *Parameters) (*Response, error)
+	Options(resource, resourceID string, params *Parameters) (Response, error)
 }
 
 // caller implements the Caller interface.
@@ -286,42 +311,42 @@ func newCaller(domain string, srvs []*server) Caller {
 }
 
 // Get implements the Caller interface.
-func (c *caller) Get(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Get(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("GET", resource, resourceID, params)
 }
 
 // Head implements the Caller interface.
-func (c *caller) Head(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Head(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("HEAD", resource, resourceID, params)
 }
 
 // Put implements the Caller interface.
-func (c *caller) Put(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Put(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("PUT", resource, resourceID, params)
 }
 
 // Post implements the Caller interface.
-func (c *caller) Post(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Post(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("POST", resource, resourceID, params)
 }
 
 // Patch implements the Caller interface.
-func (c *caller) Patch(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Patch(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("PATCH", resource, resourceID, params)
 }
 
 // Delete implements the Caller interface.
-func (c *caller) Delete(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Delete(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("DELETE", resource, resourceID, params)
 }
 
 // Options implements the Caller interface.
-func (c *caller) Options(resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) Options(resource, resourceID string, params *Parameters) (Response, error) {
 	return c.request("OPTIONS", resource, resourceID, params)
 }
 
 // request performs all requests.
-func (c *caller) request(method, resource, resourceID string, params *Parameters) (*Response, error) {
+func (c *caller) request(method, resource, resourceID string, params *Parameters) (Response, error) {
 	if params == nil {
 		params = &Parameters{}
 	}
@@ -387,21 +412,17 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 }
 
 // analyzeResponse creates a response struct out of the HTTP response.
-func analyzeResponse(response *http.Response) (*Response, error) {
-	header := KeyValues{}
-	for key, values := range response.Header {
-		header[key] = strings.Join(values, ", ")
-	}
-	content, err := ioutil.ReadAll(response.Body)
+func analyzeResponse(resp *http.Response) (Response, error) {
+	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Annotate(err, ErrAnalyzingResponse, errorMessages)
 	}
-	response.Body.Close()
-	return &Response{
-		Status:      response.StatusCode,
-		Header:      header,
-		ContentType: header["Content-Type"],
-		Content:     content,
+	resp.Body.Close()
+	return &response{
+		statusCode:  resp.StatusCode,
+		header:      resp.Header,
+		contentType: resp.Header.Get("Content-Type"),
+		content:     content,
 	}, nil
 }
 
