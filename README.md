@@ -23,6 +23,12 @@ RESTful web request handling.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/rest?status.svg)](https://godoc.org/github.com/tideland/gorest/rest)
 
+#### Request
+
+Convenient client requests to RESTful web services.
+
+[![GoDoc](https://godoc.org/github.com/tideland/gorest/request?status.svg)](https://godoc.org/github.com/tideland/gorest/request)
+
 #### Handlers
 
 Some general purpose handlers for the library.
