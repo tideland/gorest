@@ -51,8 +51,9 @@ type Multiplexer interface {
 	// RegisterAll allows to register multiple handler in one run.
 	RegisterAll(registrations Registrations) error
 
-	// Deregister removes a resource handler for a given domain and resource.
-	Deregister(domain, resource, id string)
+	// Deregister removes one, more, or all resource handler for a
+	// given domain and resource.
+	Deregister(domain, resource string, ids ...string)
 }
 
 // multiplexer implements the Multiplexer interface.
@@ -106,10 +107,10 @@ func (mux *multiplexer) RegisterAll(registrations Registrations) error {
 }
 
 // Deregister is specified on the Multiplexer interface.
-func (mux *multiplexer) Deregister(domain, resource, id string) {
+func (mux *multiplexer) Deregister(domain, resource string, ids ...string) {
 	mux.mutex.Lock()
 	defer mux.mutex.Unlock()
-	mux.mapping.deregister(domain, resource, id)
+	mux.mapping.deregister(domain, resource, ids...)
 }
 
 // ServeHTTP is specified on the http.Handler interface.
