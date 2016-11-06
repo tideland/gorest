@@ -56,22 +56,30 @@ func (hl *handlerList) register(handler ResourceHandler) error {
 }
 
 // deregister removes a resource handler.
-func (hl *handlerList) deregister(id string) {
-	var head, tail *handlerListEntry
-	current := hl.head
-	for current != nil {
-		if current.handler.ID() != id {
-			if head == nil {
-				head = current
-				tail = current
-			} else {
-				tail.next = current
-				tail = tail.next
-			}
-		}
-		current = current.next
+func (hl *handlerList) deregister(ids ...string) {
+	// Check if all shall be deregistered.
+	if len(ids) == 0 {
+		hl.head = nil
+		return
 	}
-	hl.head = head
+	// No, so iterate over ids.
+	for _, id := range ids {
+		var head, tail *handlerListEntry
+		current := hl.head
+		for current != nil {
+			if current.handler.ID() != id {
+				if head == nil {
+					head = current
+					tail = current
+				} else {
+					tail.next = current
+					tail = tail.next
+				}
+			}
+			current = current.next
+		}
+		hl.head = head
+	}
 }
 
 // handle lets all resource handlers process the request.
@@ -121,13 +129,13 @@ func (m *mapping) register(domain, resource string, handler ResourceHandler) err
 }
 
 // deregister removes a resource handler.
-func (m *mapping) deregister(domain, resource string, id string) {
+func (m *mapping) deregister(domain, resource string, ids ...string) {
 	location := m.location(domain, resource)
 	hl, ok := m.handlers[location]
 	if !ok {
 		return
 	}
-	hl.deregister(id)
+	hl.deregister(ids...)
 	if hl.head == nil {
 		delete(m.handlers, location)
 	}
