@@ -23,7 +23,7 @@ import (
 
 // Version returns the version of the handlers package.
 func Version() version.Version {
-	return version.New(2, 6, 0)
+	return version.New(2, 7, 0)
 }
 
 // EOF

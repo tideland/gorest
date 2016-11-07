@@ -224,6 +224,48 @@ func TestHandlerStack(t *testing.T) {
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
 }
 
+//  TestDeregister tests the different possibilities to stop handlers.
+func TestDeregister(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	// Setup the test server.
+	mux := newMultiplexer(assert)
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err := mux.RegisterAll(rest.Registrations{
+		{"deregister", "single", NewTestHandler("s1", assert)},
+		{"deregister", "pair", NewTestHandler("p1", assert)},
+		{"deregister", "pair", NewTestHandler("p2", assert)},
+		{"deregister", "group", NewTestHandler("g1", assert)},
+		{"deregister", "group", NewTestHandler("g2", assert)},
+		{"deregister", "group", NewTestHandler("g3", assert)},
+		{"deregister", "group", NewTestHandler("g4", assert)},
+		{"deregister", "group", NewTestHandler("g5", assert)},
+		{"deregister", "group", NewTestHandler("g6", assert)},
+	})
+	assert.Nil(err)
+	// Perform tests.
+	assert.Equal(mux.RegisteredHandlers("deregister", "single"), []string{"s1"})
+	assert.Equal(mux.RegisteredHandlers("deregister", "pair"), []string{"p1", "p2"})
+	assert.Equal(mux.RegisteredHandlers("deregister", "group"), []string{"g1", "g2", "g3", "g4", "g5", "g6"})
+
+	mux.Deregister("deregister", "single", "s1")
+	assert.Nil(mux.RegisteredHandlers("deregister", "single"))
+	mux.Deregister("deregister", "single")
+	assert.Nil(mux.RegisteredHandlers("deregister", "single"))
+
+	mux.Deregister("deregister", "pair")
+	assert.Nil(mux.RegisteredHandlers("deregister", "pair"))
+
+	mux.Deregister("deregister", "group", "x99")
+	assert.Equal(mux.RegisteredHandlers("deregister", "group"), []string{"g1", "g2", "g3", "g4", "g5", "g6"})
+	mux.Deregister("deregister", "group", "g5")
+	assert.Equal(mux.RegisteredHandlers("deregister", "group"), []string{"g1", "g2", "g3", "g4", "g6"})
+	mux.Deregister("deregister", "group", "g4", "g2")
+	assert.Equal(mux.RegisteredHandlers("deregister", "group"), []string{"g1", "g3", "g6"})
+	mux.Deregister("deregister", "group")
+	assert.Nil(mux.RegisteredHandlers("deregister", "group"))
+}
+
 // TestMethodNotSupported tests the handling of a not support HTTP method.
 func TestMethodNotSupported(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)

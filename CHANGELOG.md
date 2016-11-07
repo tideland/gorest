@@ -1,5 +1,12 @@
 # Tideland Go REST Server Library
 
+## 2016-11-07
+
+- Added *RegisteredHandlers()* to *Multiplexer* retrieve the list
+  of registered handlers for one domain and resource
+- *Deregister()* is now more flexible in deristering multiple
+  or all handlers for one domain and resource at once
+
 ## 2016-11-03
 
 - Added *request* package for more convenient requests to REST APIs
