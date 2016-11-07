@@ -82,6 +82,17 @@ func (hl *handlerList) deregister(ids ...string) {
 	}
 }
 
+// ids returns the handler ids of this handler list.
+func (hl *handlerList) ids() []string {
+	ids := []string{}
+	current := hl.head
+	for current != nil {
+		ids = append(ids, current.handler.ID())
+		current = current.next
+	}
+	return ids
+}
+
 // handle lets all resource handlers process the request.
 func (hl *handlerList) handle(job Job) error {
 	current := hl.head
@@ -126,6 +137,16 @@ func (m *mapping) register(domain, resource string, handler ResourceHandler) err
 		m.handlers[location] = hl
 	}
 	return hl.register(handler)
+}
+
+// registeredHandlers returns the IDs of the registered resource handlers.
+func (m *mapping) registeredHandlers(domain, resource string) []string {
+	location := m.location(domain, resource)
+	hl, ok := m.handlers[location]
+	if !ok {
+		return nil
+	}
+	return hl.ids()
 }
 
 // deregister removes a resource handler.

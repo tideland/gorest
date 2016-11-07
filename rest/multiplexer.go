@@ -51,6 +51,10 @@ type Multiplexer interface {
 	// RegisterAll allows to register multiple handler in one run.
 	RegisterAll(registrations Registrations) error
 
+	// RegisteredHandlers returns the ID stack of registered handlers
+	// for a domain and resource.
+	RegisteredHandlers(domain, resource string) []string
+
 	// Deregister removes one, more, or all resource handler for a
 	// given domain and resource.
 	Deregister(domain, resource string, ids ...string)
@@ -84,7 +88,7 @@ func NewMultiplexer(ctx context.Context, cfg etc.Etc) Multiplexer {
 	}
 }
 
-// Register is specified on the Multiplexer interface.
+// Register implements the Multiplexer interface.
 func (mux *multiplexer) Register(domain, resource string, handler ResourceHandler) error {
 	mux.mutex.Lock()
 	defer mux.mutex.Unlock()
@@ -95,7 +99,7 @@ func (mux *multiplexer) Register(domain, resource string, handler ResourceHandle
 	return mux.mapping.register(domain, resource, handler)
 }
 
-// RegisterAll is specified on the Multiplexer interface.
+// RegisterAll implements the Multiplexer interface.
 func (mux *multiplexer) RegisterAll(registrations Registrations) error {
 	for _, registration := range registrations {
 		err := mux.Register(registration.Domain, registration.Resource, registration.Handler)
@@ -106,14 +110,21 @@ func (mux *multiplexer) RegisterAll(registrations Registrations) error {
 	return nil
 }
 
-// Deregister is specified on the Multiplexer interface.
+// RegisteredHandlers implements the Multiplexer interface.
+func (mux *multiplexer) RegisteredHandlers(domain, resource string) []string {
+	mux.mutex.Lock()
+	defer mux.mutex.Unlock()
+	return mux.mapping.registeredHandlers(domain, resource)
+}
+
+// Deregister implements the Multiplexer interface.
 func (mux *multiplexer) Deregister(domain, resource string, ids ...string) {
 	mux.mutex.Lock()
 	defer mux.mutex.Unlock()
 	mux.mapping.deregister(domain, resource, ids...)
 }
 
-// ServeHTTP is specified on the http.Handler interface.
+// ServeHTTP implements the http.Handler interface.
 func (mux *multiplexer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mux.mutex.RLock()
 	defer mux.mutex.RUnlock()
