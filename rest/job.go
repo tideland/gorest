@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/stringex"
+	"github.com/tideland/golib/version"
 )
 
 //--------------------
@@ -61,6 +62,16 @@ type Job interface {
 	// and a following handler can use it (see the
 	// JWTAuthorizationHandler).
 	EnhanceContext(func(ctx context.Context) context.Context)
+
+	// Version returns the requested API version for this job. If none
+	// is set the version 1.0.0 will be returned as default. It will
+	// be retrieved aut of the header Version.
+	Version() version.Version
+
+	// SetVersion allows to set an API version for the response. If
+	// none is set the version 1.0.0 will be set as default. It will
+	// be set in the header Version.
+	SetVersion(v version.Version)
 
 	// AcceptsContentType checks if the requestor accepts a given content type.
 	AcceptsContentType(contentType string) bool
@@ -190,6 +201,16 @@ func (j *job) Context() context.Context {
 func (j *job) EnhanceContext(f func(ctx context.Context) context.Context) {
 	ctx := j.Context()
 	j.ctx = f(ctx)
+}
+
+// Version implements the Job interface.
+func (j *job) Version() version.Version {
+	vstr := j.request.Header.Get("Version")
+	if vstr == "" {
+		return version.Version(1, 0, 0)
+	}
+	// TODO Mue 2016-11-12 Version package needs parse of strings.
+	return version.Version(1, 0, 0)
 }
 
 // AcceptsContentType implements the Job interface.
