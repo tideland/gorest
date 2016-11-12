@@ -110,6 +110,7 @@ type job struct {
 	ctx            context.Context
 	request        *http.Request
 	responseWriter http.ResponseWriter
+	version        version.Version
 	domain         string
 	resource       string
 	resourceID     string
@@ -148,6 +149,13 @@ func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 		j.resourceID = strings.Join(parts[2:], "/")
 		j.resource = parts[1]
 		j.domain = parts[0]
+	}
+	// Retrieve the requested version of the API.
+	vsnstr := j.request.Header.Get("Version")
+	if vsnstr == "" {
+		j.version = version.Version(1, 0, 0)
+	} else {
+		// TODO Mue 2016-11-12 Version package needs parse of strings.
 	}
 	return j
 }
@@ -205,12 +213,14 @@ func (j *job) EnhanceContext(f func(ctx context.Context) context.Context) {
 
 // Version implements the Job interface.
 func (j *job) Version() version.Version {
-	vstr := j.request.Header.Get("Version")
-	if vstr == "" {
-		return version.Version(1, 0, 0)
+	return j.version
+}
+
+// SerVersion implements the Job interface.
+func (j.job) SetVersion(vsn version.Version) {
+	if vsn != nil {
+		j.version = vsn
 	}
-	// TODO Mue 2016-11-12 Version package needs parse of strings.
-	return version.Version(1, 0, 0)
 }
 
 // AcceptsContentType implements the Job interface.
