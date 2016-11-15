@@ -9,21 +9,4 @@
 // some initial resource handlers to integrate into own solutions.
 package handlers
 
-//--------------------
-// IMPORTS
-//--------------------
-
-import (
-	"github.com/tideland/golib/version"
-)
-
-//--------------------
-// VERSION
-//--------------------
-
-// Version returns the version of the handlers package.
-func Version() version.Version {
-	return version.New(2, 7, 0)
-}
-
 // EOF

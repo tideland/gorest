@@ -9,21 +9,4 @@
 // verification, and analyzing of JSON Web Tokens.
 package jwt
 
-//--------------------
-// IMPORTS
-//--------------------
-
-import (
-	"github.com/tideland/golib/version"
-)
-
-//--------------------
-// VERSION
-//--------------------
-
-// Version returns the version of the JSON Web Token package.
-func Version() version.Version {
-	return version.New(2, 7, 0)
-}
-
 // EOF

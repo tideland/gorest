@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/tideland/golib/errors"
+	"github.com/tideland/golib/version"
 
 	"github.com/tideland/gorest/jwt"
 	"github.com/tideland/gorest/rest"
@@ -202,6 +203,7 @@ func (r *response) Read(data interface{}) error {
 
 // Parameters allows to pass parameters to a call.
 type Parameters struct {
+	Version     version.Version
 	Token       jwt.JWT
 	ContentType string
 	Content     interface{}
@@ -391,6 +393,9 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 			return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
 		}
 		request.Header.Set("Content-Type", params.ContentType)
+	}
+	if params.Version != nil {
+		request.Header.Set("Version", params.Version.String())
 	}
 	if params.Token != nil {
 		request = jwt.AddTokenToRequest(request, params.Token)

@@ -10,21 +10,4 @@
 // resource handlers.
 package restaudit
 
-//--------------------
-// IMPORTS
-//--------------------
-
-import (
-	"github.com/tideland/golib/version"
-)
-
-//--------------------
-// VERSION
-//--------------------
-
-// Version returns the version of the REST Audit package.
-func Version() version.Version {
-	return version.New(2, 7, 0)
-}
-
 // EOF
