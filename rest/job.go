@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tideland/golib/logger"
 	"github.com/tideland/golib/stringex"
 	"github.com/tideland/golib/version"
 )
@@ -153,9 +154,15 @@ func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 	// Retrieve the requested version of the API.
 	vsnstr := j.request.Header.Get("Version")
 	if vsnstr == "" {
-		j.version = version.Version(1, 0, 0)
+		j.version = version.New(1, 0, 0)
 	} else {
-		// TODO Mue 2016-11-12 Version package needs parse of strings.
+		vsn, err := version.Parse(vsnstr)
+		if err != nil {
+			logger.Errorf("invalid request version: %v", err)
+			j.version = version.New(1, 0, 0)
+		} else {
+			j.version = vsn
+		}
 	}
 	return j
 }
@@ -217,7 +224,7 @@ func (j *job) Version() version.Version {
 }
 
 // SerVersion implements the Job interface.
-func (j.job) SetVersion(vsn version.Version) {
+func (j *job) SetVersion(vsn version.Version) {
 	if vsn != nil {
 		j.version = vsn
 	}

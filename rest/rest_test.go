@@ -22,6 +22,7 @@ import (
 	"github.com/tideland/golib/audit"
 	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
+	"github.com/tideland/golib/version"
 
 	"github.com/tideland/gorest/rest"
 	"github.com/tideland/gorest/restaudit"
@@ -224,6 +225,47 @@ func TestHandlerStack(t *testing.T) {
 	assert.Substring("<li>Resource: stack</li>", string(resp.Body))
 }
 
+// TestVersion tests request and response version.
+func TestVersion(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	// Setup the test server.
+	mux := newMultiplexer(assert)
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err := mux.Register("test", "json", NewTestHandler("json", assert))
+	assert.Nil(err)
+	// Perform test requests.
+	resp := ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/base/test/json/4711?foo=0815",
+		Header: restaudit.KeyValues{
+			"Accept": "application/json",
+		},
+	})
+	vsn := resp.Header["Version"]
+	assert.Equal(vsn, "1.0.0")
+	resp = ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/base/test/json/4711?foo=0815",
+		Header: restaudit.KeyValues{
+			"Accept":  "application/json",
+			"Version": "2",
+		},
+	})
+	vsn = resp.Header["Version"]
+	assert.Equal(vsn, "2.0.0")
+	resp = ts.DoRequest(&restaudit.Request{
+		Method: "GET",
+		Path:   "/base/test/json/4711?foo=0815",
+		Header: restaudit.KeyValues{
+			"Accept":  "application/json",
+			"Version": "3.0",
+		},
+	})
+	vsn = resp.Header["Version"]
+	assert.Equal(vsn, "4.0.0-alpha")
+}
+
 //  TestDeregister tests the different possibilities to stop handlers.
 func TestDeregister(t *testing.T) {
 	assert := audit.NewTestingAssertion(t, true)
@@ -381,7 +423,12 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	}
 	ctxTest := job.Context().Value("test")
 	query := job.Query().ValueAsString("foo", "bar")
+	precedence, _ := job.Version().Compare(version.New(3, 0, 0))
+	// Create response.
 	data := TestRequestData{job.Domain(), job.Resource(), job.ResourceID(), query, ctxTest.(string)}
+	if precedence == version.Equal {
+		job.SetVersion(version.New(4, 0, 0, "alpha"))
+	}
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeXML):
 		th.assert.Logf("GET XML")

@@ -114,7 +114,7 @@ func (gf *gobFormatter) Write(status int, data interface{}, headers ...KeyValue)
 		gf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	gf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeGOB)
-	gf.job.ResponseWriter().Header().Set("Version", gf.job.version.String())
+	gf.job.ResponseWriter().Header().Set("Version", gf.job.Version().String())
 	gf.job.ResponseWriter().WriteHeader(status)
 	err := enc.Encode(data)
 	if err != nil {
@@ -161,7 +161,7 @@ func (jf *jsonFormatter) Write(status int, data interface{}, headers ...KeyValue
 		jf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	jf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeJSON)
-	jf.job.ResponseWriter().Header().Set("Version", jf.job.version.String())
+	jf.job.ResponseWriter().Header().Set("Version", jf.job.Version().String())
 	jf.job.ResponseWriter().WriteHeader(status)
 	_, err = jf.job.ResponseWriter().Write(body)
 	return err
@@ -200,7 +200,7 @@ func (xf *xmlFormatter) Write(status int, data interface{}, headers ...KeyValue)
 		xf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	xf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeXML)
-	xf.job.ResponseWriter().Header().Set("Version", xf.job.version.String())
+	xf.job.ResponseWriter().Header().Set("Version", xf.job.Version().String())
 	xf.job.ResponseWriter().WriteHeader(status)
 	_, err = xf.job.ResponseWriter().Write(body)
 	return err
