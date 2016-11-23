@@ -12,6 +12,7 @@ package jwt
 //--------------------
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,8 +23,25 @@ import (
 )
 
 //--------------------
-// CONST
+// CONTEXT
 //--------------------
+
+// key for the storage of values in a context.
+type key int
+
+// jwtKey for the storrage of a JWT.
+var jwtKey key = 0
+
+// NewContext returns a new context that carries a token.
+func NewContext(ctx context.Context, token JWT) context.Context {
+	return context.WithValue(ctx, jwtKey, token)
+}
+
+// FromContext returns the token stored in ctx, if any.
+func FromContext(ctx context.Context) (JWT, bool) {
+	token, ok := ctx.Value(jwtKey).(JWT)
+	return token, ok
+}
 
 //--------------------
 // JSON Web Token

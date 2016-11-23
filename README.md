@@ -7,13 +7,14 @@ systems. It provides a convenient mapping of URL to handlers and methods
 specific to the called HTTP method. Additionally there are helpers for
 marshalling and unmarshalling.
 
-The library earlier has been known as `web` package of the Tideland Go Library.
+The library earlier has been known as `web` package of the
+[Tideland Go Library](https://github.com/tideland/golib).
 
 I hope you like it. ;)
 
 ## Version
 
-Version 2.9.0
+Version 2.9.1
 
 ## Packages
 

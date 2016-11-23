@@ -3,6 +3,8 @@
 ## 2016-11-23
 
 - Added *JWTFromContext()* to *handlers*
+- Later removed JWT context from *handler*; now *jwt* package
+  has *NewContext()* and *FromContext()* as usual
 
 ## 2016-11-07
 
