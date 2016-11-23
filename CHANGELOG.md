@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-11-23
+
+- Added *JWTFromContext()* to *handlers*
+
 ## 2016-11-07
 
 - Added *RegisteredHandlers()* to *Multiplexer* retrieve the list
