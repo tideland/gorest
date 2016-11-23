@@ -144,10 +144,10 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			},
 			status: 200,
 			auditf: func(assert audit.Assertion, job rest.Job) (bool, error) {
-				auditJWT, ok := handlers.JWTFromJob(job)
+				token, ok := jwt.FromContext(job.Context())
 				assert.True(ok)
-				assert.NotNil(auditJWT)
-				subject, ok := auditJWT.Claims().Subject()
+				assert.NotNil(token)
+				subject, ok := token.Claims().Subject()
 				assert.True(ok)
 				assert.Equal(subject, "test")
 				return true, nil

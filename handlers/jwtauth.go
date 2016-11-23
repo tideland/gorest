@@ -25,12 +25,6 @@ import (
 // JWT AUTHORIZATION HANDLER
 //--------------------
 
-// key for the storage of values in a context.
-type key int
-
-// jwtKey for the storrage of a JWT.
-var jwtKey key = 0
-
 // JWTAuthorizationConfig allows to control how the JWT authorization
 // handler works. All values are optional. In this case tokens are only
 // decoded without using a cache, validated for the current time plus/minus
@@ -134,37 +128,37 @@ func (h *jwtAuthorizationHandler) Options(job rest.Job) (bool, error) {
 
 // check is used by all methods to check the token.
 func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
-	var jobJWT jwt.JWT
+	var token jwt.JWT
 	var err error
 	switch {
 	case h.cache != nil && h.key != nil:
-		jobJWT, err = jwt.VerifyCachedFromJob(job, h.cache, h.key)
+		token, err = jwt.VerifyCachedFromJob(job, h.cache, h.key)
 	case h.cache != nil && h.key == nil:
-		jobJWT, err = jwt.DecodeCachedFromJob(job, h.cache)
+		token, err = jwt.DecodeCachedFromJob(job, h.cache)
 	case h.cache == nil && h.key != nil:
-		jobJWT, err = jwt.VerifyFromJob(job, h.key)
+		token, err = jwt.VerifyFromJob(job, h.key)
 	default:
-		jobJWT, err = jwt.DecodeFromJob(job)
+		token, err = jwt.DecodeFromJob(job)
 	}
 	// Now do the checks.
 	if err != nil {
 		return false, h.deny(job, err.Error())
 	}
-	if jobJWT == nil {
+	if token == nil {
 		return false, h.deny(job, "no JSON Web Token")
 	}
-	if !jobJWT.IsValid(h.leeway) {
+	if !token.IsValid(h.leeway) {
 		return false, h.deny(job, "JSON Web Token claims 'nbf' and/or 'exp' are not valid")
 	}
 	if h.gatekeeper != nil {
-		err := h.gatekeeper(job, jobJWT.Claims())
+		err := h.gatekeeper(job, token.Claims())
 		if err != nil {
 			return false, h.deny(job, "access rejected by gatekeeper: "+err.Error())
 		}
 	}
 	// All fine, store token in context.
 	job.EnhanceContext(func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, jwtKey, jobJWT)
+		return jwt.NewContext(ctx, token)
 	})
 	return true, nil
 }
@@ -183,20 +177,6 @@ func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 		job.ResponseWriter().Write([]byte(msg))
 		return nil
 	}
-}
-
-// JWTFromContext retrieves a JWT out of a context, when a JWTAuthorizationHandler
-// earlier in the queue of handlers successfully received and checked one.
-func JWTFromContext(ctx context.Context) (jwt.JWT, bool) {
-	jobJWT, ok := ctx.Value(jwtKey).(jwt.JWT)
-	return jobJWT, ok
-}
-
-// JWTFromJob retrieves a JWT out of the context of a job, when a
-// JWTAuthorizationHandler earlier in the queue of handlers successfully
-// received and checked one.
-func JWTFromJob(job rest.Job) (jwt.JWT, bool) {
-	return JWTFromContext(job.Context())
 }
 
 // EOF
