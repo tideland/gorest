@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-12-01
+
+- Added missing status code
+
 ## 2016-11-23
 
 - Added *JWTFromContext()* to *handlers*
