@@ -32,13 +32,14 @@ import (
 
 const (
 	// Standard REST status codes.
-	StatusOK           = http.StatusOK
-	StatusCreated      = http.StatusCreated
-	StatusNoContent    = http.StatusNoContent
-	StatusBadRequest   = http.StatusBadRequest
-	StatusUnauthorized = http.StatusUnauthorized
-	StatusNotFound     = http.StatusNotFound
-	StatusConflict     = http.StatusConflict
+	StatusOK                  = http.StatusOK
+	StatusCreated             = http.StatusCreated
+	StatusNoContent           = http.StatusNoContent
+	StatusBadRequest          = http.StatusBadRequest
+	StatusUnauthorized        = http.StatusUnauthorized
+	StatusNotFound            = http.StatusNotFound
+	StatusConflict            = http.StatusConflict
+	StatusInternalServerError = http.StatusInternalServerError
 
 	// Standard REST content types.
 	ContentTypePlain      = "text/plain"
