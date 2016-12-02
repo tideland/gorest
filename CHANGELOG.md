@@ -1,5 +1,9 @@
 # Tideland Go REST Server Library
 
+## 2016-12-02
+
+- Added logging to negative responses
+
 ## 2016-12-01
 
 - Added missing status code
