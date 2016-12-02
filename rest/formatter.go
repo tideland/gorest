@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/tideland/golib/errors"
+	"github.com/tideland/golib/logger"
 	"github.com/tideland/golib/stringex"
 )
 
@@ -96,6 +97,7 @@ func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...inte
 // NegativeFeedback writes a negative feedback envelope to the formatter.
 func NegativeFeedback(f Formatter, status int, msg string, args ...interface{}) error {
 	fmsg := fmt.Sprintf(msg, args...)
+	logger.Warningf(fmsg)
 	return f.Write(status, envelope{"fail", fmsg, nil})
 }
 
