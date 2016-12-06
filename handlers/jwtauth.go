@@ -142,18 +142,18 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 	}
 	// Now do the checks.
 	if err != nil {
-		return false, h.deny(job, err.Error())
+		return h.deny(job, err.Error())
 	}
 	if token == nil {
-		return false, h.deny(job, "no JSON Web Token")
+		return h.deny(job, "no JSON Web Token")
 	}
 	if !token.IsValid(h.leeway) {
-		return false, h.deny(job, "JSON Web Token claims 'nbf' and/or 'exp' are not valid")
+		return h.deny(job, "JSON Web Token claims 'nbf' and/or 'exp' are not valid")
 	}
 	if h.gatekeeper != nil {
 		err := h.gatekeeper(job, token.Claims())
 		if err != nil {
-			return false, h.deny(job, "access rejected by gatekeeper: "+err.Error())
+			return h.deny(job, "access rejected by gatekeeper: "+err.Error())
 		}
 	}
 	// All fine, store token in context.
@@ -164,7 +164,7 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 }
 
 // deny sends a negative feedback to the caller.
-func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
+func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) (bool, error) {
 	h.logger(job, msg)
 	switch {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
@@ -175,7 +175,7 @@ func (h *jwtAuthorizationHandler) deny(job rest.Job, msg string) error {
 		job.ResponseWriter().WriteHeader(rest.StatusUnauthorized)
 		job.ResponseWriter().Header().Set("Content-Type", rest.ContentTypePlain)
 		job.ResponseWriter().Write([]byte(msg))
-		return nil
+		return false, nil
 	}
 }
 
