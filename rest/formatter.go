@@ -89,16 +89,16 @@ type Formatter interface {
 }
 
 // PositiveFeedback writes a positive feedback envelope to the formatter.
-func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) error {
+func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) (bool, error) {
 	fmsg := fmt.Sprintf(msg, args...)
-	return f.Write(StatusOK, envelope{"success", fmsg, payload})
+	return false, f.Write(StatusOK, envelope{"success", fmsg, payload})
 }
 
 // NegativeFeedback writes a negative feedback envelope to the formatter.
-func NegativeFeedback(f Formatter, status int, msg string, args ...interface{}) error {
+func NegativeFeedback(f Formatter, status int, msg string, args ...interface{}) (bool, error) {
 	fmsg := fmt.Sprintf(msg, args...)
 	logger.Warningf(fmsg)
-	return f.Write(status, envelope{"fail", fmsg, nil})
+	return false, f.Write(status, envelope{"fail", fmsg, nil})
 }
 
 //--------------------
