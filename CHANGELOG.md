@@ -1,5 +1,10 @@
 # Tideland Go REST Server Library
 
+## 2016-12-06
+
+- *PositiveFeedback()* and *NegativeFeedback()* now also return
+  false to be directly used as final return in handler methods
+
 ## 2016-12-02
 
 - Added logging to negative responses
