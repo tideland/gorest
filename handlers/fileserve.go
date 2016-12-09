@@ -16,13 +16,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tideland/golib/errors"
 	"github.com/tideland/golib/logger"
 
 	"github.com/tideland/gorest/rest"
 )
 
 //--------------------
-// FILE SERVER HANDLER
+// FILE SERVE HANDLER
 //--------------------
 
 // fileServeHandler implements the file server.
@@ -53,8 +54,12 @@ func (h *fileServeHandler) Init(env rest.Environment, domain, resource string) e
 
 // Get is specified on the GetResourceHandler interface.
 func (h *fileServeHandler) Get(job rest.Job) (bool, error) {
-	filename := h.dir + job.ResourceID()
-	logger.Infof("serving file %q", filename)
+	filename, err := filepath.Abs(filepath.Clean(h.dir + job.ResourceID()))
+	if err != nil {
+		logger.Errorf("file '%s' does not exist", filename)
+		return false, errors.Annotate(err, ErrDownloadingFile, errorMessages, filename)
+	}
+	logger.Infof("serving file '%s'", filename)
 	http.ServeFile(job.ResponseWriter(), job.Request(), filename)
 	return true, nil
 }
