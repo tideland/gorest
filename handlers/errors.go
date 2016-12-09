@@ -21,10 +21,12 @@ import (
 
 const (
 	ErrUploadingFile = iota + 1
+	ErrDownloadingFile
 )
 
 var errorMessages = errors.Messages{
-	ErrUploadingFile: "uploaded file cannot be handled by %q",
+	ErrUploadingFile:   "uploaded file cannot be handled by '%s'",
+	ErrDownloadingFile: "file '%s' cannot be downloaded",
 }
 
 // EOF
