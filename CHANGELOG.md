@@ -1,6 +1,6 @@
 # Tideland Go REST Server Library
 
-## 2016-12-09
+## 2016-12-11
 
 - *FileServeHandler* now logs the absolute filename and logs
   error if the name is invalid

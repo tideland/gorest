@@ -14,7 +14,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.9.4
+Version 2.9.5
 
 ## Packages
 
