@@ -38,6 +38,7 @@ const (
 	StatusNoContent           = http.StatusNoContent
 	StatusBadRequest          = http.StatusBadRequest
 	StatusUnauthorized        = http.StatusUnauthorized
+	StatusForbidden           = http.StatusForbidden
 	StatusNotFound            = http.StatusNotFound
 	StatusConflict            = http.StatusConflict
 	StatusInternalServerError = http.StatusInternalServerError
@@ -64,12 +65,13 @@ var (
 //--------------------
 
 // envelope is a helper to give a qualified feedback in RESTful requests.
-// It contains wether the request has been successful, in case of an
-// error an additional message and the payload.
+// It contains wether the request has been successful, a message, and in
+// case of success some payload if wanted.
 type envelope struct {
-	Status  string      `json:"status" xml:"status"`
-	Message string      `json:"message,omitempty" xml:"message,omitempty"`
-	Payload interface{} `json:"payload,omitempty" xml:"payload,omitempty"`
+	StatusCode int         `json:"statusCode" xml:"statusCode"`
+	Status     string      `json:"status" xml:"status"`
+	Message    string      `json:"message,omitempty" xml:"message,omitempty"`
+	Payload    interface{} `json:"payload,omitempty" xml:"payload,omitempty"`
 }
 
 //--------------------
@@ -80,7 +82,7 @@ type Formatter interface {
 	// Write encodes the passed data to implementers format and writes
 	// it with the passed status code and possible header values to the
 	// response writer.
-	Write(status int, data interface{}, headers ...KeyValue) error
+	Write(statusCode int, data interface{}, headers ...KeyValue) error
 
 	// Read checks if the request content type matches the implementers
 	// format, reads its body and decodes it to the value pointed to by
@@ -91,14 +93,16 @@ type Formatter interface {
 // PositiveFeedback writes a positive feedback envelope to the formatter.
 func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) (bool, error) {
 	fmsg := fmt.Sprintf(msg, args...)
-	return false, f.Write(StatusOK, envelope{"success", fmsg, payload})
+	return false, f.Write(StatusOK, envelope{StatusOK, "success", fmsg, payload})
 }
 
 // NegativeFeedback writes a negative feedback envelope to the formatter.
-func NegativeFeedback(f Formatter, status int, msg string, args ...interface{}) (bool, error) {
+// The message is also logged.
+func NegativeFeedback(f Formatter, statusCode int, msg string, args ...interface{}) (bool, error) {
 	fmsg := fmt.Sprintf(msg, args...)
-	logger.Warningf(fmsg)
-	return false, f.Write(status, envelope{"fail", fmsg, nil})
+	lmsg := fmt.Sprintf("(status code %d) "+fmsg, statusCode)
+	logger.Warningf(lmsg)
+	return false, f.Write(statusCode, envelope{statusCode, "fail", fmsg, nil})
 }
 
 //--------------------
@@ -111,14 +115,14 @@ type gobFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (gf *gobFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
+func (gf *gobFormatter) Write(statusCode int, data interface{}, headers ...KeyValue) error {
 	enc := gob.NewEncoder(gf.job.ResponseWriter())
 	for _, header := range headers {
 		gf.job.ResponseWriter().Header().Add(header.Key, fmt.Sprintf("%v", header.Value))
 	}
 	gf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeGOB)
 	gf.job.ResponseWriter().Header().Set("Version", gf.job.Version().String())
-	gf.job.ResponseWriter().WriteHeader(status)
+	gf.job.ResponseWriter().WriteHeader(statusCode)
 	err := enc.Encode(data)
 	if err != nil {
 		http.Error(gf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
@@ -149,7 +153,7 @@ type jsonFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (jf *jsonFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
+func (jf *jsonFormatter) Write(statusCode int, data interface{}, headers ...KeyValue) error {
 	body, err := json.Marshal(data)
 	if err != nil {
 		http.Error(jf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
@@ -165,7 +169,7 @@ func (jf *jsonFormatter) Write(status int, data interface{}, headers ...KeyValue
 	}
 	jf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeJSON)
 	jf.job.ResponseWriter().Header().Set("Version", jf.job.Version().String())
-	jf.job.ResponseWriter().WriteHeader(status)
+	jf.job.ResponseWriter().WriteHeader(statusCode)
 	_, err = jf.job.ResponseWriter().Write(body)
 	return err
 }
@@ -193,7 +197,7 @@ type xmlFormatter struct {
 }
 
 // Write is specified on the Formatter interface.
-func (xf *xmlFormatter) Write(status int, data interface{}, headers ...KeyValue) error {
+func (xf *xmlFormatter) Write(statusCode int, data interface{}, headers ...KeyValue) error {
 	body, err := xml.Marshal(data)
 	if err != nil {
 		http.Error(xf.job.ResponseWriter(), err.Error(), http.StatusInternalServerError)
@@ -204,7 +208,7 @@ func (xf *xmlFormatter) Write(status int, data interface{}, headers ...KeyValue)
 	}
 	xf.job.ResponseWriter().Header().Set("Content-Type", ContentTypeXML)
 	xf.job.ResponseWriter().Header().Set("Version", xf.job.Version().String())
-	xf.job.ResponseWriter().WriteHeader(status)
+	xf.job.ResponseWriter().WriteHeader(statusCode)
 	_, err = xf.job.ResponseWriter().Write(body)
 	return err
 }
