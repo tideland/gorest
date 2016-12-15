@@ -231,7 +231,7 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 				assert.Nil(err)
 				return out
 			},
-			status: 401,
+			status: 403,
 		},
 	}
 	// Run defined tests.

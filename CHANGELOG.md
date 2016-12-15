@@ -1,6 +1,12 @@
 # Tideland Go REST Server Library
 
-## 2016-12-11
+## 2016-12-15
+
+- Added *StatusCode* to feedback envelope
+- *JWTAuthorizationHandler* now provides different status codes
+  depending on valid tokens, expiration time, and authorization
+
+## 2016-12-09
 
 - *FileServeHandler* now logs the absolute filename and logs
   error if the name is invalid
