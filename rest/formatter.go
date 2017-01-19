@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - REST - Formatter
 //
-// Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -227,12 +227,12 @@ func (xf *xmlFormatter) Read(data interface{}) error {
 }
 
 //--------------------
-// QUERY
+// VALUES
 //--------------------
 
-// Query allows typed access with default values to a jobs
-// request values passed as query.
-type Query interface {
+// Values allows typed access with default values to a jobs
+// request values passed as query or form.
+type Values interface {
 	// ValueAsString retrieves the string value of a given key. If it
 	// doesn't exist the default value dv is returned.
 	ValueAsString(key, dv string) string
@@ -259,49 +259,49 @@ type Query interface {
 	ValueAsDuration(key string, dv time.Duration) time.Duration
 }
 
-// query implements Query.
-type query struct {
+// values implements Values.
+type values struct {
 	values url.Values
 }
 
 // ValueAsString implements the Query interface.
-func (q *query) ValueAsString(key, dv string) string {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsString(key, dv string) string {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsString(value, dv)
 }
 
 // ValueAsBool implements the Query interface.
-func (q *query) ValueAsBool(key string, dv bool) bool {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsBool(key string, dv bool) bool {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsBool(value, dv)
 }
 
 // ValueAsInt implements the Query interface.
-func (q *query) ValueAsInt(key string, dv int) int {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsInt(key string, dv int) int {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsInt(value, dv)
 }
 
 // ValueAsFloat64 implements the Query interface.
-func (q *query) ValueAsFloat64(key string, dv float64) float64 {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsFloat64(key string, dv float64) float64 {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsFloat64(value, dv)
 }
 
 // ValueAsTime implements the Query interface.
-func (q *query) ValueAsTime(key, format string, dv time.Time) time.Time {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsTime(key, format string, dv time.Time) time.Time {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsTime(value, format, dv)
 }
 
 // ValueAsDuration implements the Query interface.
-func (q *query) ValueAsDuration(key string, dv time.Duration) time.Duration {
-	value := queryValuer(q.values.Get(key))
+func (v *values) ValueAsDuration(key string, dv time.Duration) time.Duration {
+	value := queryValuer(v.values.Get(key))
 	return defaulter.AsDuration(value, dv)
 }
 
 // queryValues implements the stringex.Valuer interface for
-// the usage inside of query.
+// the usage inside of values.
 type queryValuer string
 
 // Value implements the Valuer interface.

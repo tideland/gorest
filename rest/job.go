@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - REST - Job
 //
-// Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -102,7 +102,10 @@ type Job interface {
 	XML() Formatter
 
 	// Query returns a convenient access to query values.
-	Query() Query
+	Query() Values
+
+	// Form returns a convenient access to form values.
+	Form() Values
 }
 
 // job implements the Job interface.
@@ -306,8 +309,13 @@ func (j *job) XML() Formatter {
 }
 
 // Query implements the Job interface.
-func (j *job) Query() Query {
-	return &query{j.request.URL.Query()}
+func (j *job) Query() Values {
+	return &values{j.request.URL.Query()}
+}
+
+// Form implements the Job interface.
+func (j *job) Form() Values {
+	return &values{j.request.PostForm}
 }
 
 // EOF
