@@ -1,5 +1,10 @@
 # Tideland Go REST Server Library
 
+## 2017-01-19
+
+- Renamed type *Query* to *Values*
+- Added *Form()* to *Job*
+
 ## 2016-12-15
 
 - Added *StatusCode* to feedback envelope
