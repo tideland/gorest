@@ -13,6 +13,8 @@ package restaudit
 
 import (
 	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -24,7 +26,19 @@ import (
 )
 
 //--------------------
-// TEST TOOLS
+// CONSTENTS
+//--------------------
+
+const (
+	HeaderAccept      = "Accept"
+	HeaderContentType = "Content-Type"
+
+	ApplicationJSON = "application/json"
+	ApplicationXML  = "application/xml"
+)
+
+//--------------------
+// TEST TYPES
 //--------------------
 
 // KeyValues handles keys and values for request headers and cookies.
@@ -40,6 +54,28 @@ type Request struct {
 	RequestProcessor func(req *http.Request) *http.Request
 }
 
+// SetJSONContent sets the content of a request to JSON.
+func (r *Request) SetJSONContent(assert audit.Assertion, data interface{}) {
+	body, err := json.Marshal(data)
+	assert.Nil(err)
+	r.Body = body
+	r.Header = KeyValues{
+		HeaderContentType: ApplicationJSON,
+		HeaderAccept:      ApplicationJSON,
+	}
+}
+
+// SetXMLContent sets the content of a request to XML.
+func (r *Request) SetXMLContent(assert audit.Assertion, data interface{}) {
+	body, err := xml.Marshal(data)
+	assert.Nil(err)
+	r.Body = body
+	r.Header = KeyValues{
+		HeaderContentType: ApplicationXML,
+		HeaderAccept:      ApplicationXML,
+	}
+}
+
 // Response wraps all infos of a test response.
 type Response struct {
 	Status  int
@@ -48,10 +84,30 @@ type Response struct {
 	Body    []byte
 }
 
+// JSONContent retrieves the JSON content and unmarshals it.
+func (r *Response) JSONContent(assert audit.Assertion, data interface{}) {
+	contentType, ok := r.Header[HeaderContentType]
+	assert.True(ok)
+	assert.Equal(contentType, ApplicationJSON)
+	err := json.Unmarshal(r.Body, data)
+	assert.Nil(err)
+}
+
+// XMLContent retrieves the XML content and unmarshals it.
+func (r *Response) XMLContent(assert audit.Assertion, data interface{}) {
+	contentType, ok := r.Header[HeaderContentType]
+	assert.True(ok)
+	assert.Equal(contentType, ApplicationJSON)
+	err := xml.Unmarshal(r.Body, data)
+	assert.Nil(err)
+}
+
 //--------------------
 // TEST SERVER
 //--------------------
 
+// TestServer defines the test server with methods for requests
+// and uploads.
 type TestServer interface {
 	// Close shuts down the server and blocks until all outstanding
 	// requests have completed.
@@ -78,12 +134,12 @@ func StartServer(handler http.Handler, assert audit.Assertion) TestServer {
 	}
 }
 
-// Close is specified on the TestServer interface.
+// Close implements the TestServer interface.
 func (ts *testServer) Close() {
 	ts.server.Close()
 }
 
-// DoRequest is specified on the TestServer interface.
+// DoRequest implements the TestServer interface.
 func (ts *testServer) DoRequest(req *Request) *Response {
 	// First prepare it.
 	transport := &http.Transport{}
@@ -115,7 +171,7 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 	return ts.response(resp)
 }
 
-// DoUpload is specified on the TestServer interface.
+// DoUpload implements the TestServer interface.
 func (ts *testServer) DoUpload(path, fieldname, filename, data string) *Response {
 	// Prepare request.
 	transport := &http.Transport{}
