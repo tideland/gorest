@@ -14,35 +14,35 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.10.0
+Version 2.11.0
 
 ## Packages
 
-#### REST
+### REST
 
 RESTful web request handling.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/rest?status.svg)](https://godoc.org/github.com/tideland/gorest/rest)
 
-#### Request
+### Request
 
 Convenient client requests to RESTful web services.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/request?status.svg)](https://godoc.org/github.com/tideland/gorest/request)
 
-#### Handlers
+### Handlers
 
 Some general purpose handlers for the library.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/handlers?status.svg)](https://godoc.org/github.com/tideland/gorest/handlers)
 
-#### JSON Web Token
+### JSON Web Token
 
 JWT package for secure authentication and information exchange like claims.
 
 [![GoDoc](https://godoc.org/github.com/tideland/gorest/jwt?status.svg)](https://godoc.org/github.com/tideland/gorest/jwt)
 
-#### REST Audit
+### REST Audit
 
 Helpers for the unit tests of the Go REST Server Library.
 
