@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - REST Audit
 //
-// Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -13,22 +13,44 @@ package restaudit
 
 import (
 	"bytes"
+	"encoding/gob"
+	"encoding/json"
+	"encoding/xml"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 
 	"github.com/tideland/golib/audit"
 )
 
 //--------------------
-// TEST TOOLS
+// CONSTENTS
+//--------------------
+
+const (
+	HeaderAccept      = "Accept"
+	HeaderContentType = "Content-Type"
+
+	ApplicationGOB  = "application/vnd.tideland.gob"
+	ApplicationJSON = "application/json"
+	ApplicationXML  = "application/xml"
+)
+
+//--------------------
+// TEST TYPES
 //--------------------
 
 // KeyValues handles keys and values for request headers and cookies.
 type KeyValues map[string]string
+
+//--------------------
+// REQUEST
+//--------------------
 
 // Request wraps all infos for a test request.
 type Request struct {
@@ -40,6 +62,91 @@ type Request struct {
 	RequestProcessor func(req *http.Request) *http.Request
 }
 
+// NewRequest creates a new test request with the given method
+// and path.
+func NewRequest(method, path string) *Request {
+	return &Request{
+		Method: method,
+		Path:   path,
+	}
+}
+
+// AddHeader adds or overwrites a request header.
+func (r *Request) AddHeader(key, value string) *Request {
+	if r.Header == nil {
+		r.Header = KeyValues{}
+	}
+	r.Header[key] = value
+	return r
+}
+
+// AddCookie adds or overwrites a request header.
+func (r *Request) AddCookie(key, value string) *Request {
+	if r.Cookies == nil {
+		r.Cookies = KeyValues{}
+	}
+	r.Cookies[key] = value
+	return r
+}
+
+// SetContent sets the request content based on the type and
+// the marshalled data.
+func (r *Request) SetContent(
+	assert audit.Assertion,
+	contentType string,
+	data interface{},
+) *Request {
+	switch contentType {
+	case ApplicationGOB:
+		body := &bytes.Buffer{}
+		enc := gob.NewEncoder(body)
+		err := enc.Encode(data)
+		assert.Nil(err, "cannot encode data to GOB")
+		r.Body = body.Bytes()
+		r.AddHeader(HeaderContentType, ApplicationGOB)
+		r.AddHeader(HeaderAccept, ApplicationGOB)
+	case ApplicationJSON:
+		body, err := json.Marshal(data)
+		assert.Nil(err, "cannot marshal data to JSON")
+		r.Body = body
+		r.AddHeader(HeaderContentType, ApplicationJSON)
+		r.AddHeader(HeaderAccept, ApplicationJSON)
+	case ApplicationXML:
+		body, err := xml.Marshal(data)
+		assert.Nil(err, "cannot marshal data to XML")
+		r.Body = body
+		r.AddHeader(HeaderContentType, ApplicationXML)
+		r.AddHeader(HeaderAccept, ApplicationXML)
+	}
+	return r
+}
+
+// RenderTemplate renders the passed data into the template
+// and assigns it to the request body. The content type
+// will be set too.
+func (r *Request) RenderTemplate(
+	assert audit.Assertion,
+	contentType string,
+	templateSource string,
+	data interface{},
+) *Request {
+	// Render template.
+	t, err := template.New(r.Path).Parse(templateSource)
+	assert.Nil(err, "cannot parse template")
+	body := &bytes.Buffer{}
+	err = t.Execute(body, data)
+	assert.Nil(err, "cannot render template")
+	r.Body = body.Bytes()
+	// Set content type.
+	r.AddHeader(HeaderContentType, contentType)
+	r.AddHeader(HeaderAccept, contentType)
+	return r
+}
+
+//--------------------
+// RESPONSE
+//--------------------
+
 // Response wraps all infos of a test response.
 type Response struct {
 	Status  int
@@ -48,10 +155,62 @@ type Response struct {
 	Body    []byte
 }
 
+// AssertStatus checks if the status is the expected one.
+func (r *Response) AssertStatus(assert audit.Assertion, status int) {
+	assert.Equal(r.Status, status, "response status differs")
+}
+
+// AssertHeader checks if a header exists and retrieves it.
+func (r *Response) AssertHeader(assert audit.Assertion, key string) string {
+	assert.NotEmpty(r.Header, "response contains no header")
+	value, ok := r.Header[key]
+	assert.True(ok, "header '"+key+"' not found")
+	return value
+}
+
+// AssertCookie checks if a cookie exists and retrieves it.
+func (r *Response) AssertCookie(assert audit.Assertion, key string) string {
+	assert.NotEmpty(r.Cookies, "response contains no cookies")
+	value, ok := r.Cookies[key]
+	assert.True(ok, "cookie '"+key+"' not found")
+	return value
+}
+
+// AssertContent retrieves the content based on the content type
+// and unmarshals it accordingly.
+func (r *Response) AssertContent(assert audit.Assertion, data interface{}) {
+	contentType, ok := r.Header[HeaderContentType]
+	assert.True(ok)
+	switch contentType {
+	case ApplicationGOB:
+		body := bytes.NewBuffer(r.Body)
+		dec := gob.NewDecoder(body)
+		err := dec.Decode(data)
+		assert.Nil(err, "cannot decode GOB body")
+	case ApplicationJSON:
+		err := json.Unmarshal(r.Body, data)
+		assert.Nil(err, "cannot unmarshal JSON body")
+	case ApplicationXML:
+		err := xml.Unmarshal(r.Body, data)
+		assert.Nil(err, "cannot unmarshal XML body")
+	default:
+		assert.Fail("unknown content type: " + contentType)
+	}
+}
+
+// AssertContentMatch checks if the content matches a regular expression.
+func (r *Response) AssertContentMatch(assert audit.Assertion, pattern string) {
+	ok, err := regexp.MatchString(pattern, string(r.Body))
+	assert.Nil(err, "illegal content match pattern")
+	assert.True(ok, "body doesn't match pattern")
+}
+
 //--------------------
 // TEST SERVER
 //--------------------
 
+// TestServer defines the test server with methods for requests
+// and uploads.
 type TestServer interface {
 	// Close shuts down the server and blocks until all outstanding
 	// requests have completed.
@@ -78,12 +237,12 @@ func StartServer(handler http.Handler, assert audit.Assertion) TestServer {
 	}
 }
 
-// Close is specified on the TestServer interface.
+// Close implements the TestServer interface.
 func (ts *testServer) Close() {
 	ts.server.Close()
 }
 
-// DoRequest is specified on the TestServer interface.
+// DoRequest implements the TestServer interface.
 func (ts *testServer) DoRequest(req *Request) *Response {
 	// First prepare it.
 	transport := &http.Transport{}
@@ -115,7 +274,7 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 	return ts.response(resp)
 }
 
-// DoUpload is specified on the TestServer interface.
+// DoUpload implements the TestServer interface.
 func (ts *testServer) DoUpload(path, fieldname, filename, data string) *Response {
 	// Prepare request.
 	transport := &http.Transport{}
