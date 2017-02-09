@@ -1,5 +1,11 @@
 # Tideland Go REST Server Library
 
+## 2017-02-10
+
+- Extended *Request* and *Response* of *restaudit* with some
+  convenience methods for easier testing
+- Adopted *restaudit* changes in *rest* tests
+
 ## 2017-01-19
 
 - Renamed type *Query* to *Values*

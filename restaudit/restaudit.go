@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - REST Audit
 //
-// Copyright (C) 2009-2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -13,13 +13,16 @@ package restaudit
 
 import (
 	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"encoding/xml"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 
 	"github.com/tideland/golib/audit"
@@ -33,6 +36,7 @@ const (
 	HeaderAccept      = "Accept"
 	HeaderContentType = "Content-Type"
 
+	ApplicationGOB  = "application/vnd.tideland.gob"
 	ApplicationJSON = "application/json"
 	ApplicationXML  = "application/xml"
 )
@@ -44,6 +48,10 @@ const (
 // KeyValues handles keys and values for request headers and cookies.
 type KeyValues map[string]string
 
+//--------------------
+// REQUEST
+//--------------------
+
 // Request wraps all infos for a test request.
 type Request struct {
 	Method           string
@@ -54,27 +62,90 @@ type Request struct {
 	RequestProcessor func(req *http.Request) *http.Request
 }
 
-// SetJSONContent sets the content of a request to JSON.
-func (r *Request) SetJSONContent(assert audit.Assertion, data interface{}) {
-	body, err := json.Marshal(data)
-	assert.Nil(err)
-	r.Body = body
-	r.Header = KeyValues{
-		HeaderContentType: ApplicationJSON,
-		HeaderAccept:      ApplicationJSON,
+// NewRequest creates a new test request with the given method
+// and path.
+func NewRequest(method, path string) *Request {
+	return &Request{
+		Method: method,
+		Path:   path,
 	}
 }
 
-// SetXMLContent sets the content of a request to XML.
-func (r *Request) SetXMLContent(assert audit.Assertion, data interface{}) {
-	body, err := xml.Marshal(data)
-	assert.Nil(err)
-	r.Body = body
-	r.Header = KeyValues{
-		HeaderContentType: ApplicationXML,
-		HeaderAccept:      ApplicationXML,
+// AddHeader adds or overwrites a request header.
+func (r *Request) AddHeader(key, value string) *Request {
+	if r.Header == nil {
+		r.Header = KeyValues{}
 	}
+	r.Header[key] = value
+	return r
 }
+
+// AddCookie adds or overwrites a request header.
+func (r *Request) AddCookie(key, value string) *Request {
+	if r.Cookies == nil {
+		r.Cookies = KeyValues{}
+	}
+	r.Cookies[key] = value
+	return r
+}
+
+// SetContent sets the request content based on the type and
+// the marshalled data.
+func (r *Request) SetContent(
+	assert audit.Assertion,
+	contentType string,
+	data interface{},
+) *Request {
+	switch contentType {
+	case ApplicationGOB:
+		body := &bytes.Buffer{}
+		enc := gob.NewEncoder(body)
+		err := enc.Encode(data)
+		assert.Nil(err, "cannot encode data to GOB")
+		r.Body = body.Bytes()
+		r.AddHeader(HeaderContentType, ApplicationGOB)
+		r.AddHeader(HeaderAccept, ApplicationGOB)
+	case ApplicationJSON:
+		body, err := json.Marshal(data)
+		assert.Nil(err, "cannot marshal data to JSON")
+		r.Body = body
+		r.AddHeader(HeaderContentType, ApplicationJSON)
+		r.AddHeader(HeaderAccept, ApplicationJSON)
+	case ApplicationXML:
+		body, err := xml.Marshal(data)
+		assert.Nil(err, "cannot marshal data to XML")
+		r.Body = body
+		r.AddHeader(HeaderContentType, ApplicationXML)
+		r.AddHeader(HeaderAccept, ApplicationXML)
+	}
+	return r
+}
+
+// RenderTemplate renders the passed data into the template
+// and assigns it to the request body. The content type
+// will be set too.
+func (r *Request) RenderTemplate(
+	assert audit.Assertion,
+	contentType string,
+	templateSource string,
+	data interface{},
+) *Request {
+	// Render template.
+	t, err := template.New(r.Path).Parse(templateSource)
+	assert.Nil(err, "cannot parse template")
+	body := &bytes.Buffer{}
+	err = t.Execute(body, data)
+	assert.Nil(err, "cannot render template")
+	r.Body = body.Bytes()
+	// Set content type.
+	r.AddHeader(HeaderContentType, contentType)
+	r.AddHeader(HeaderAccept, contentType)
+	return r
+}
+
+//--------------------
+// RESPONSE
+//--------------------
 
 // Response wraps all infos of a test response.
 type Response struct {
@@ -84,22 +155,54 @@ type Response struct {
 	Body    []byte
 }
 
-// JSONContent retrieves the JSON content and unmarshals it.
-func (r *Response) JSONContent(assert audit.Assertion, data interface{}) {
-	contentType, ok := r.Header[HeaderContentType]
-	assert.True(ok)
-	assert.Equal(contentType, ApplicationJSON)
-	err := json.Unmarshal(r.Body, data)
-	assert.Nil(err)
+// AssertStatus checks if the status is the expected one.
+func (r *Response) AssertStatus(assert audit.Assertion, status int) {
+	assert.Equal(r.Status, status, "response status differs")
 }
 
-// XMLContent retrieves the XML content and unmarshals it.
-func (r *Response) XMLContent(assert audit.Assertion, data interface{}) {
+// AssertHeader checks if a header exists and retrieves it.
+func (r *Response) AssertHeader(assert audit.Assertion, key string) string {
+	assert.NotEmpty(r.Header, "response contains no header")
+	value, ok := r.Header[key]
+	assert.True(ok, "header '"+key+"' not found")
+	return value
+}
+
+// AssertCookie checks if a cookie exists and retrieves it.
+func (r *Response) AssertCookie(assert audit.Assertion, key string) string {
+	assert.NotEmpty(r.Cookies, "response contains no cookies")
+	value, ok := r.Cookies[key]
+	assert.True(ok, "cookie '"+key+"' not found")
+	return value
+}
+
+// AssertContent retrieves the content based on the content type
+// and unmarshals it accordingly.
+func (r *Response) AssertContent(assert audit.Assertion, data interface{}) {
 	contentType, ok := r.Header[HeaderContentType]
 	assert.True(ok)
-	assert.Equal(contentType, ApplicationJSON)
-	err := xml.Unmarshal(r.Body, data)
-	assert.Nil(err)
+	switch contentType {
+	case ApplicationGOB:
+		body := bytes.NewBuffer(r.Body)
+		dec := gob.NewDecoder(body)
+		err := dec.Decode(data)
+		assert.Nil(err, "cannot decode GOB body")
+	case ApplicationJSON:
+		err := json.Unmarshal(r.Body, data)
+		assert.Nil(err, "cannot unmarshal JSON body")
+	case ApplicationXML:
+		err := xml.Unmarshal(r.Body, data)
+		assert.Nil(err, "cannot unmarshal XML body")
+	default:
+		assert.Fail("unknown content type: " + contentType)
+	}
+}
+
+// AssertContentMatch checks if the content matches a regular expression.
+func (r *Response) AssertContentMatch(assert audit.Assertion, pattern string) {
+	ok, err := regexp.MatchString(pattern, string(r.Body))
+	assert.Nil(err, "illegal content match pattern")
+	assert.True(ok, "body doesn't match pattern")
 }
 
 //--------------------
