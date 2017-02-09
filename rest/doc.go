@@ -5,8 +5,8 @@
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-// The Tideland Go REST Server Library provides the package rest for the
-// implementation of servers with a RESTful API. The business has to
+// Package rest of the Tideland Go REST Server Library provides types for
+// the implementation of servers with a RESTful API. The business has to
 // be implemented in types fullfilling the ResourceHandler interface.
 // This basic interface only allows the initialization of the handler.
 // More interesting are the other interfaces like GetResourceHandler
