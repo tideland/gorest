@@ -46,13 +46,13 @@ func TestGetJSON(t *testing.T) {
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/test/json/4711?foo=0815")
+	req := restaudit.NewRequest(assert, "GET", "/base/test/json/4711?foo=0815")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
-	resp.AssertContentMatch(assert, `.*"ResourceID":"4711".*`)
-	resp.AssertContentMatch(assert, `.*"Query":"0815".*`)
-	resp.AssertContentMatch(assert, `.*"Context":"foo".*`)
+	resp.AssertStatusEquals(200)
+	resp.AssertBodyContains(`"ResourceID":"4711"`)
+	resp.AssertBodyContains(`"Query":"0815"`)
+	resp.AssertBodyContains(`"Context":"foo"`)
 }
 
 // TestPutJSON tests the PUT command with a JSON payload and result.
@@ -65,13 +65,13 @@ func TestPutJSON(t *testing.T) {
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("PUT", "/base/test/json/4711")
+	req := restaudit.NewRequest(assert, "PUT", "/base/test/json/4711")
 	reqData := TestRequestData{"foo", "bar", "4711", "0815", ""}
-	req.SetContent(assert, restaudit.ApplicationJSON, reqData)
+	req.SetBody(restaudit.ApplicationJSON, reqData)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
+	resp.AssertStatusEquals(200)
 	respData := TestRequestData{}
-	resp.AssertContent(assert, &respData)
+	resp.AssertBody(&respData)
 	assert.Equal(respData, reqData)
 }
 
@@ -85,11 +85,11 @@ func TestGetXML(t *testing.T) {
 	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/test/xml/4711")
+	req := restaudit.NewRequest(assert, "GET", "/base/test/xml/4711")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationXML)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
-	resp.AssertContentMatch(assert, `.*<ResourceID>4711</ResourceID>.*`)
+	resp.AssertStatusEquals(200)
+	resp.AssertBodyContains(`<ResourceID>4711</ResourceID>`)
 }
 
 // TestPutXML tests the PUT command with a XML payload and result.
@@ -102,13 +102,13 @@ func TestPutXML(t *testing.T) {
 	err := mux.Register("test", "xml", NewTestHandler("xml", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("PUT", "/base/test/xml/4711")
+	req := restaudit.NewRequest(assert, "PUT", "/base/test/xml/4711")
 	reqData := TestRequestData{"foo", "bar", "4711", "0815", ""}
-	req.SetContent(assert, restaudit.ApplicationXML, reqData)
+	req.SetBody(restaudit.ApplicationXML, reqData)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
+	resp.AssertStatusEquals(200)
 	respData := TestRequestData{}
-	resp.AssertContent(assert, &respData)
+	resp.AssertBody(&respData)
 	assert.Equal(respData, reqData)
 }
 
@@ -122,13 +122,13 @@ func TestPutGOB(t *testing.T) {
 	err := mux.Register("test", "gob", NewTestHandler("putgob", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("POST", "/base/test/gob")
+	req := restaudit.NewRequest(assert, "POST", "/base/test/gob")
 	reqData := TestCounterData{"test", 4711}
-	req.SetContent(assert, restaudit.ApplicationGOB, reqData)
+	req.SetBody(restaudit.ApplicationGOB, reqData)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
+	resp.AssertStatusEquals(200)
 	respData := TestCounterData{}
-	resp.AssertContent(assert, &respData)
+	resp.AssertBody(&respData)
 	assert.Equal(respData, reqData)
 }
 
@@ -142,9 +142,9 @@ func TestLongPath(t *testing.T) {
 	err := mux.Register("content", "blog", NewTestHandler("default", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-a-test")
+	req := restaudit.NewRequest(assert, "GET", "/base/content/blog/2014/09/30/just-a-test")
 	resp := ts.DoRequest(req)
-	resp.AssertContentMatch(assert, `.*Resource ID: 2014/09/30/just-a-test.*`)
+	resp.AssertBodyContains(`Resource ID: 2014/09/30/just-a-test`)
 }
 
 // TestFallbackDefault tests the fallback to default.
@@ -157,9 +157,9 @@ func TestFallbackDefault(t *testing.T) {
 	err := mux.Register("testing", "index", NewTestHandler("default", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/x/y")
+	req := restaudit.NewRequest(assert, "GET", "/base/x/y")
 	resp := ts.DoRequest(req)
-	resp.AssertContentMatch(assert, `.*Resource: y.*`)
+	resp.AssertBodyContains(`Resource: y`)
 }
 
 // TestHandlerStack tests a complete handler stack.
@@ -176,17 +176,16 @@ func TestHandlerStack(t *testing.T) {
 	})
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/test/stack")
+	req := restaudit.NewRequest(assert, "GET", "/base/test/stack")
 	resp := ts.DoRequest(req)
-	resp.AssertContentMatch(assert, ".*Resource: token.*")
-	token := resp.AssertHeader(assert, "Token")
-	assert.Equal(token, "foo")
-	req = restaudit.NewRequest("GET", "/base/test/stack")
+	resp.AssertBodyContains("Resource: token")
+	resp.AssertHeaderEquals("Token", "foo")
+	req = restaudit.NewRequest(assert, "GET", "/base/test/stack")
 	req.AddHeader("token", "foo")
 	resp = ts.DoRequest(req)
-	resp.AssertContentMatch(assert, ".*Resource: stack.*")
+	resp.AssertBodyContains("Resource: stack")
 	resp = ts.DoRequest(req)
-	resp.AssertContentMatch(assert, ".*Resource: stack.*")
+	resp.AssertBodyContains("Resource: stack")
 }
 
 // TestVersion tests request and response version.
@@ -199,28 +198,25 @@ func TestVersion(t *testing.T) {
 	err := mux.Register("test", "json", NewTestHandler("json", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("GET", "/base/test/json/4711?foo=0815")
+	req := restaudit.NewRequest(assert, "GET", "/base/test/json/4711?foo=0815")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	resp := ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
-	vsn := resp.AssertHeader(assert, "Version")
-	assert.Equal(vsn, "1.0.0")
+	resp.AssertStatusEquals(200)
+	resp.AssertHeaderEquals("Version", "1.0.0")
 
-	req = restaudit.NewRequest("GET", "/base/test/json/4711?foo=0815")
+	req = restaudit.NewRequest(assert, "GET", "/base/test/json/4711?foo=0815")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.AddHeader("Version", "2")
 	resp = ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
-	vsn = resp.AssertHeader(assert, "Version")
-	assert.Equal(vsn, "2.0.0")
+	resp.AssertStatusEquals(200)
+	resp.AssertHeaderEquals("Version", "2.0.0")
 
-	req = restaudit.NewRequest("GET", "/base/test/json/4711?foo=0815")
+	req = restaudit.NewRequest(assert, "GET", "/base/test/json/4711?foo=0815")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.AddHeader("Version", "3.0")
 	resp = ts.DoRequest(req)
-	resp.AssertStatus(assert, 200)
-	vsn = resp.AssertHeader(assert, "Version")
-	assert.Equal(vsn, "4.0.0-alpha")
+	resp.AssertStatusEquals(200)
+	resp.AssertHeaderEquals("Version", "4.0.0-alpha")
 }
 
 //  TestDeregister tests the different possibilities to stop handlers.
@@ -275,9 +271,9 @@ func TestMethodNotSupported(t *testing.T) {
 	err := mux.Register("test", "method", NewTestHandler("method", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("OPTION", "/base/test/method")
+	req := restaudit.NewRequest(assert, "OPTION", "/base/test/method")
 	resp := ts.DoRequest(req)
-	resp.AssertContentMatch(assert, ".*OPTION.*")
+	resp.AssertBodyContains("OPTION")
 }
 
 //--------------------

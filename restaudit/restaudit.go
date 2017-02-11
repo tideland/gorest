@@ -54,6 +54,7 @@ type KeyValues map[string]string
 
 // Request wraps all infos for a test request.
 type Request struct {
+	Assert           audit.Assertion
 	Method           string
 	Path             string
 	Header           KeyValues
@@ -64,8 +65,9 @@ type Request struct {
 
 // NewRequest creates a new test request with the given method
 // and path.
-func NewRequest(method, path string) *Request {
+func NewRequest(assert audit.Assertion, method, path string) *Request {
 	return &Request{
+		Assert: assert,
 		Method: method,
 		Path:   path,
 	}
@@ -89,31 +91,27 @@ func (r *Request) AddCookie(key, value string) *Request {
 	return r
 }
 
-// SetContent sets the request content based on the type and
+// SetBody sets the request content based on the type and
 // the marshalled data.
-func (r *Request) SetContent(
-	assert audit.Assertion,
-	contentType string,
-	data interface{},
-) *Request {
+func (r *Request) SetBody(contentType string, data interface{}) *Request {
 	switch contentType {
 	case ApplicationGOB:
 		body := &bytes.Buffer{}
 		enc := gob.NewEncoder(body)
 		err := enc.Encode(data)
-		assert.Nil(err, "cannot encode data to GOB")
+		r.Assert.Nil(err, "cannot encode data to GOB")
 		r.Body = body.Bytes()
 		r.AddHeader(HeaderContentType, ApplicationGOB)
 		r.AddHeader(HeaderAccept, ApplicationGOB)
 	case ApplicationJSON:
 		body, err := json.Marshal(data)
-		assert.Nil(err, "cannot marshal data to JSON")
+		r.Assert.Nil(err, "cannot marshal data to JSON")
 		r.Body = body
 		r.AddHeader(HeaderContentType, ApplicationJSON)
 		r.AddHeader(HeaderAccept, ApplicationJSON)
 	case ApplicationXML:
 		body, err := xml.Marshal(data)
-		assert.Nil(err, "cannot marshal data to XML")
+		r.Assert.Nil(err, "cannot marshal data to XML")
 		r.Body = body
 		r.AddHeader(HeaderContentType, ApplicationXML)
 		r.AddHeader(HeaderAccept, ApplicationXML)
@@ -124,18 +122,13 @@ func (r *Request) SetContent(
 // RenderTemplate renders the passed data into the template
 // and assigns it to the request body. The content type
 // will be set too.
-func (r *Request) RenderTemplate(
-	assert audit.Assertion,
-	contentType string,
-	templateSource string,
-	data interface{},
-) *Request {
+func (r *Request) RenderTemplate(contentType string, templateSource string, data interface{}) *Request {
 	// Render template.
 	t, err := template.New(r.Path).Parse(templateSource)
-	assert.Nil(err, "cannot parse template")
+	r.Assert.Nil(err, "cannot parse template")
 	body := &bytes.Buffer{}
 	err = t.Execute(body, data)
-	assert.Nil(err, "cannot render template")
+	r.Assert.Nil(err, "cannot render template")
 	r.Body = body.Bytes()
 	// Set content type.
 	r.AddHeader(HeaderContentType, contentType)
@@ -149,60 +142,94 @@ func (r *Request) RenderTemplate(
 
 // Response wraps all infos of a test response.
 type Response struct {
+	Assert  audit.Assertion
 	Status  int
 	Header  KeyValues
 	Cookies KeyValues
 	Body    []byte
 }
 
-// AssertStatus checks if the status is the expected one.
-func (r *Response) AssertStatus(assert audit.Assertion, status int) {
-	assert.Equal(r.Status, status, "response status differs")
+// AssertStatusEquals checks if the status is the expected one.
+func (r *Response) AssertStatusEquals(expected int) {
+	r.Assert.Equal(r.Status, expected, "response status differs")
 }
 
 // AssertHeader checks if a header exists and retrieves it.
-func (r *Response) AssertHeader(assert audit.Assertion, key string) string {
-	assert.NotEmpty(r.Header, "response contains no header")
+func (r *Response) AssertHeader(key string) string {
+	r.Assert.NotEmpty(r.Header, "response contains no header")
 	value, ok := r.Header[key]
-	assert.True(ok, "header '"+key+"' not found")
+	r.Assert.True(ok, "header '"+key+"' not found")
 	return value
+}
+
+// AssertHeaderEquals checks if a header exists and compares
+// it to an expected one.
+func (r *Response) AssertHeaderEquals(key, expected string) {
+	value := r.AssertHeader(key)
+	r.Assert.Equal(value, expected, "header value is not equal to expected")
+}
+
+// AssertHeaderContains checks if a header exists and looks for
+// an expected part.
+func (r *Response) AssertHeaderContains(key, expected string) {
+	value := r.AssertHeader(key)
+	r.Assert.Substring(expected, value, "header value does not contain expected")
 }
 
 // AssertCookie checks if a cookie exists and retrieves it.
-func (r *Response) AssertCookie(assert audit.Assertion, key string) string {
-	assert.NotEmpty(r.Cookies, "response contains no cookies")
+func (r *Response) AssertCookie(key string) string {
+	r.Assert.NotEmpty(r.Cookies, "response contains no cookies")
 	value, ok := r.Cookies[key]
-	assert.True(ok, "cookie '"+key+"' not found")
+	r.Assert.True(ok, "cookie '"+key+"' not found")
 	return value
 }
 
-// AssertContent retrieves the content based on the content type
+// AssertCookieEquals checks if a cookie exists and compares
+// it to an expected one.
+func (r *Response) AssertCookieEquals(key, expected string) {
+	value := r.AssertCookie(key)
+	r.Assert.Equal(value, expected, "cookie value is not equal to expected")
+}
+
+// AssertCookieContains checks if a cookie exists and looks for
+// an expected part.
+func (r *Response) AssertCookieContains(key, expected string) {
+	value := r.AssertCookie(key)
+	r.Assert.Substring(expected, value, "cookie value does not contain expected")
+}
+
+// AssertBody retrieves the body based on the content type
 // and unmarshals it accordingly.
-func (r *Response) AssertContent(assert audit.Assertion, data interface{}) {
+func (r *Response) AssertBody(data interface{}) {
 	contentType, ok := r.Header[HeaderContentType]
-	assert.True(ok)
+	r.Assert.True(ok)
 	switch contentType {
 	case ApplicationGOB:
 		body := bytes.NewBuffer(r.Body)
 		dec := gob.NewDecoder(body)
 		err := dec.Decode(data)
-		assert.Nil(err, "cannot decode GOB body")
+		r.Assert.Nil(err, "cannot decode GOB body")
 	case ApplicationJSON:
 		err := json.Unmarshal(r.Body, data)
-		assert.Nil(err, "cannot unmarshal JSON body")
+		r.Assert.Nil(err, "cannot unmarshal JSON body")
 	case ApplicationXML:
 		err := xml.Unmarshal(r.Body, data)
-		assert.Nil(err, "cannot unmarshal XML body")
+		r.Assert.Nil(err, "cannot unmarshal XML body")
 	default:
-		assert.Fail("unknown content type: " + contentType)
+		r.Assert.Fail("unknown content type: " + contentType)
 	}
 }
 
-// AssertContentMatch checks if the content matches a regular expression.
-func (r *Response) AssertContentMatch(assert audit.Assertion, pattern string) {
+// AssertBodyMatches checks if the body matches a regular expression.
+func (r *Response) AssertBodyMatches(pattern string) {
 	ok, err := regexp.MatchString(pattern, string(r.Body))
-	assert.Nil(err, "illegal content match pattern")
-	assert.True(ok, "body doesn't match pattern")
+	r.Assert.Nil(err, "illegal content match pattern")
+	r.Assert.True(ok, "body doesn't match pattern")
+}
+
+// AssertBodyContains checks if the body contains a string.
+func (r *Response) AssertBodyContains(expected string) {
+	r.Assert.Contents(expected, r.Body, "body doesn't contains expected")
 }
 
 //--------------------
@@ -249,6 +276,9 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 	c := &http.Client{Transport: transport}
 	url := ts.server.URL + req.Path
 	var bodyReader io.Reader
+	if req.Assert == nil {
+		req.Assert = ts.assert
+	}
 	if req.Body != nil {
 		bodyReader = ioutil.NopCloser(bytes.NewBuffer(req.Body))
 	}
@@ -309,6 +339,7 @@ func (ts *testServer) response(hr *http.Response) *Response {
 	ts.assert.Nil(err, "cannot read response")
 	defer hr.Body.Close()
 	return &Response{
+		Assert:  ts.assert,
 		Status:  hr.StatusCode,
 		Header:  respHeader,
 		Cookies: respCookies,
