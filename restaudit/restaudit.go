@@ -52,22 +52,23 @@ type KeyValues map[string]string
 // REQUEST
 //--------------------
 
+// RequestProcessor is for pre-processing HTTP requests.
+type RequestProcessor func(req *http.Request) *http.Request
+
 // Request wraps all infos for a test request.
 type Request struct {
-	Assert           audit.Assertion
 	Method           string
 	Path             string
 	Header           KeyValues
 	Cookies          KeyValues
 	Body             []byte
-	RequestProcessor func(req *http.Request) *http.Request
+	RequestProcessor RequestProcessor
 }
 
 // NewRequest creates a new test request with the given method
 // and path.
-func NewRequest(assert audit.Assertion, method, path string) *Request {
+func NewRequest(method, path string) *Request {
 	return &Request{
-		Assert: assert,
 		Method: method,
 		Path:   path,
 	}
@@ -91,27 +92,37 @@ func (r *Request) AddCookie(key, value string) *Request {
 	return r
 }
 
-// SetBody sets the request content based on the type and
+// SetRequestProcessor sets the pre-processor.
+func (r *Request) SetRequestProcessor(processor RequestProcessor) *Request {
+	r.RequestProcessor = processor
+	return r
+}
+
+// MarshalBody sets the request body based on the type and
 // the marshalled data.
-func (r *Request) SetBody(contentType string, data interface{}) *Request {
+func (r *Request) MarshalBody(
+	assert audit.Assertion,
+	contentType string,
+	data interface{},
+) *Request {
 	switch contentType {
 	case ApplicationGOB:
 		body := &bytes.Buffer{}
 		enc := gob.NewEncoder(body)
 		err := enc.Encode(data)
-		r.Assert.Nil(err, "cannot encode data to GOB")
+		assert.Nil(err, "cannot encode data to GOB")
 		r.Body = body.Bytes()
 		r.AddHeader(HeaderContentType, ApplicationGOB)
 		r.AddHeader(HeaderAccept, ApplicationGOB)
 	case ApplicationJSON:
 		body, err := json.Marshal(data)
-		r.Assert.Nil(err, "cannot marshal data to JSON")
+		assert.Nil(err, "cannot marshal data to JSON")
 		r.Body = body
 		r.AddHeader(HeaderContentType, ApplicationJSON)
 		r.AddHeader(HeaderAccept, ApplicationJSON)
 	case ApplicationXML:
 		body, err := xml.Marshal(data)
-		r.Assert.Nil(err, "cannot marshal data to XML")
+		assert.Nil(err, "cannot marshal data to XML")
 		r.Body = body
 		r.AddHeader(HeaderContentType, ApplicationXML)
 		r.AddHeader(HeaderAccept, ApplicationXML)
@@ -122,13 +133,18 @@ func (r *Request) SetBody(contentType string, data interface{}) *Request {
 // RenderTemplate renders the passed data into the template
 // and assigns it to the request body. The content type
 // will be set too.
-func (r *Request) RenderTemplate(contentType string, templateSource string, data interface{}) *Request {
+func (r *Request) RenderTemplate(
+	assert audit.Assertion,
+	contentType string,
+	templateSource string,
+	data interface{},
+) *Request {
 	// Render template.
 	t, err := template.New(r.Path).Parse(templateSource)
-	r.Assert.Nil(err, "cannot parse template")
+	assert.Nil(err, "cannot parse template")
 	body := &bytes.Buffer{}
 	err = t.Execute(body, data)
-	r.Assert.Nil(err, "cannot render template")
+	assert.Nil(err, "cannot render template")
 	r.Body = body.Bytes()
 	// Set content type.
 	r.AddHeader(HeaderContentType, contentType)
@@ -142,7 +158,7 @@ func (r *Request) RenderTemplate(contentType string, templateSource string, data
 
 // Response wraps all infos of a test response.
 type Response struct {
-	Assert  audit.Assertion
+	assert  audit.Assertion
 	Status  int
 	Header  KeyValues
 	Cookies KeyValues
@@ -151,14 +167,14 @@ type Response struct {
 
 // AssertStatusEquals checks if the status is the expected one.
 func (r *Response) AssertStatusEquals(expected int) {
-	r.Assert.Equal(r.Status, expected, "response status differs")
+	r.assert.Equal(r.Status, expected, "response status differs")
 }
 
 // AssertHeader checks if a header exists and retrieves it.
 func (r *Response) AssertHeader(key string) string {
-	r.Assert.NotEmpty(r.Header, "response contains no header")
+	r.assert.NotEmpty(r.Header, "response contains no header")
 	value, ok := r.Header[key]
-	r.Assert.True(ok, "header '"+key+"' not found")
+	r.assert.True(ok, "header '"+key+"' not found")
 	return value
 }
 
@@ -166,21 +182,21 @@ func (r *Response) AssertHeader(key string) string {
 // it to an expected one.
 func (r *Response) AssertHeaderEquals(key, expected string) {
 	value := r.AssertHeader(key)
-	r.Assert.Equal(value, expected, "header value is not equal to expected")
+	r.assert.Equal(value, expected, "header value is not equal to expected")
 }
 
 // AssertHeaderContains checks if a header exists and looks for
 // an expected part.
 func (r *Response) AssertHeaderContains(key, expected string) {
 	value := r.AssertHeader(key)
-	r.Assert.Substring(expected, value, "header value does not contain expected")
+	r.assert.Substring(expected, value, "header value does not contain expected")
 }
 
 // AssertCookie checks if a cookie exists and retrieves it.
 func (r *Response) AssertCookie(key string) string {
-	r.Assert.NotEmpty(r.Cookies, "response contains no cookies")
+	r.assert.NotEmpty(r.Cookies, "response contains no cookies")
 	value, ok := r.Cookies[key]
-	r.Assert.True(ok, "cookie '"+key+"' not found")
+	r.assert.True(ok, "cookie '"+key+"' not found")
 	return value
 }
 
@@ -188,48 +204,48 @@ func (r *Response) AssertCookie(key string) string {
 // it to an expected one.
 func (r *Response) AssertCookieEquals(key, expected string) {
 	value := r.AssertCookie(key)
-	r.Assert.Equal(value, expected, "cookie value is not equal to expected")
+	r.assert.Equal(value, expected, "cookie value is not equal to expected")
 }
 
 // AssertCookieContains checks if a cookie exists and looks for
 // an expected part.
 func (r *Response) AssertCookieContains(key, expected string) {
 	value := r.AssertCookie(key)
-	r.Assert.Substring(expected, value, "cookie value does not contain expected")
+	r.assert.Substring(expected, value, "cookie value does not contain expected")
 }
 
-// AssertBody retrieves the body based on the content type
+// AssertUnmarshalledBody retrieves the body based on the content type
 // and unmarshals it accordingly.
-func (r *Response) AssertBody(data interface{}) {
+func (r *Response) AssertUnmarshalledBody(data interface{}) {
 	contentType, ok := r.Header[HeaderContentType]
-	r.Assert.True(ok)
+	r.assert.True(ok)
 	switch contentType {
 	case ApplicationGOB:
 		body := bytes.NewBuffer(r.Body)
 		dec := gob.NewDecoder(body)
 		err := dec.Decode(data)
-		r.Assert.Nil(err, "cannot decode GOB body")
+		r.assert.Nil(err, "cannot decode GOB body")
 	case ApplicationJSON:
 		err := json.Unmarshal(r.Body, data)
-		r.Assert.Nil(err, "cannot unmarshal JSON body")
+		r.assert.Nil(err, "cannot unmarshal JSON body")
 	case ApplicationXML:
 		err := xml.Unmarshal(r.Body, data)
-		r.Assert.Nil(err, "cannot unmarshal XML body")
+		r.assert.Nil(err, "cannot unmarshal XML body")
 	default:
-		r.Assert.Fail("unknown content type: " + contentType)
+		r.assert.Fail("unknown content type: " + contentType)
 	}
 }
 
 // AssertBodyMatches checks if the body matches a regular expression.
 func (r *Response) AssertBodyMatches(pattern string) {
 	ok, err := regexp.MatchString(pattern, string(r.Body))
-	r.Assert.Nil(err, "illegal content match pattern")
-	r.Assert.True(ok, "body doesn't match pattern")
+	r.assert.Nil(err, "illegal content match pattern")
+	r.assert.True(ok, "body doesn't match pattern")
 }
 
 // AssertBodyContains checks if the body contains a string.
 func (r *Response) AssertBodyContains(expected string) {
-	r.Assert.Contents(expected, r.Body, "body doesn't contains expected")
+	r.assert.Contents(expected, r.Body, "body doesn't contains expected")
 }
 
 //--------------------
@@ -276,9 +292,6 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 	c := &http.Client{Transport: transport}
 	url := ts.server.URL + req.Path
 	var bodyReader io.Reader
-	if req.Assert == nil {
-		req.Assert = ts.assert
-	}
 	if req.Body != nil {
 		bodyReader = ioutil.NopCloser(bytes.NewBuffer(req.Body))
 	}
@@ -294,7 +307,7 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 		}
 		httpReq.AddCookie(cookie)
 	}
-	// Check if request shall be processed before performed.
+	// Check if request shall be pre-processed before performed.
 	if req.RequestProcessor != nil {
 		httpReq = req.RequestProcessor(httpReq)
 	}
@@ -339,7 +352,7 @@ func (ts *testServer) response(hr *http.Response) *Response {
 	ts.assert.Nil(err, "cannot read response")
 	defer hr.Body.Close()
 	return &Response{
-		Assert:  ts.assert,
+		assert:  ts.assert,
 		Status:  hr.StatusCode,
 		Header:  respHeader,
 		Cookies: respCookies,

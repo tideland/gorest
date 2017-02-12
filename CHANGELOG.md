@@ -1,5 +1,15 @@
 # Tideland Go REST Server Library
 
+## 2017-02-12
+
+- Some renamings in *Request*  and *Response*, sadly
+  to the previous minor release
+- More convenience helpers for testing
+- Adopted new testing to more packages
+- Using http package constants instead of own
+  plain strings
+- Added documentation to restaudit
+
 ## 2017-02-10
 
 - Extended *Request* and *Response* of *restaudit* with some

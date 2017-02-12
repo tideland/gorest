@@ -13,6 +13,7 @@ package rest
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/tideland/golib/errors"
 )
@@ -83,43 +84,43 @@ func handleJob(handler ResourceHandler, job Job) (bool, error) {
 		return fmt.Sprintf("%s@%s/%s", handler.ID(), job.Domain(), job.Resource())
 	}
 	switch job.Request().Method {
-	case "GET":
+	case http.MethodGet:
 		grh, ok := handler.(GetResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoGetHandler, errorMessages, id())
 		}
 		return grh.Get(job)
-	case "HEAD":
+	case http.MethodHead:
 		hrh, ok := handler.(HeadResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoHeadHandler, errorMessages, id())
 		}
 		return hrh.Head(job)
-	case "PUT":
+	case http.MethodPut:
 		prh, ok := handler.(PutResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoPutHandler, errorMessages, id())
 		}
 		return prh.Put(job)
-	case "POST":
+	case http.MethodPost:
 		prh, ok := handler.(PostResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoPostHandler, errorMessages, id())
 		}
 		return prh.Post(job)
-	case "PATCH":
+	case http.MethodPatch:
 		prh, ok := handler.(PatchResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoPatchHandler, errorMessages, id())
 		}
 		return prh.Patch(job)
-	case "DELETE":
+	case http.MethodDelete:
 		drh, ok := handler.(DeleteResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoDeleteHandler, errorMessages, id())
 		}
 		return drh.Delete(job)
-	case "OPTIONS":
+	case http.MethodOptions:
 		orh, ok := handler.(OptionsResourceHandler)
 		if !ok {
 			return false, errors.New(ErrNoOptionsHandler, errorMessages, id())
