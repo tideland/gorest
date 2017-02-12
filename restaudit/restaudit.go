@@ -52,6 +52,9 @@ type KeyValues map[string]string
 // REQUEST
 //--------------------
 
+// RequestProcessor is for pre-processing HTTP requests.
+type RequestProcessor func(req *http.Request) *http.Request
+
 // Request wraps all infos for a test request.
 type Request struct {
 	Method           string
@@ -59,7 +62,7 @@ type Request struct {
 	Header           KeyValues
 	Cookies          KeyValues
 	Body             []byte
-	RequestProcessor func(req *http.Request) *http.Request
+	RequestProcessor RequestProcessor
 }
 
 // NewRequest creates a new test request with the given method
@@ -89,9 +92,15 @@ func (r *Request) AddCookie(key, value string) *Request {
 	return r
 }
 
-// SetContent sets the request content based on the type and
+// SetRequestProcessor sets the pre-processor.
+func (r *Request) SetRequestProcessor(processor RequestProcessor) *Request {
+	r.RequestProcessor = processor
+	return r
+}
+
+// MarshalBody sets the request body based on the type and
 // the marshalled data.
-func (r *Request) SetContent(
+func (r *Request) MarshalBody(
 	assert audit.Assertion,
 	contentType string,
 	data interface{},
@@ -149,60 +158,94 @@ func (r *Request) RenderTemplate(
 
 // Response wraps all infos of a test response.
 type Response struct {
+	assert  audit.Assertion
 	Status  int
 	Header  KeyValues
 	Cookies KeyValues
 	Body    []byte
 }
 
-// AssertStatus checks if the status is the expected one.
-func (r *Response) AssertStatus(assert audit.Assertion, status int) {
-	assert.Equal(r.Status, status, "response status differs")
+// AssertStatusEquals checks if the status is the expected one.
+func (r *Response) AssertStatusEquals(expected int) {
+	r.assert.Equal(r.Status, expected, "response status differs")
 }
 
 // AssertHeader checks if a header exists and retrieves it.
-func (r *Response) AssertHeader(assert audit.Assertion, key string) string {
-	assert.NotEmpty(r.Header, "response contains no header")
+func (r *Response) AssertHeader(key string) string {
+	r.assert.NotEmpty(r.Header, "response contains no header")
 	value, ok := r.Header[key]
-	assert.True(ok, "header '"+key+"' not found")
+	r.assert.True(ok, "header '"+key+"' not found")
 	return value
+}
+
+// AssertHeaderEquals checks if a header exists and compares
+// it to an expected one.
+func (r *Response) AssertHeaderEquals(key, expected string) {
+	value := r.AssertHeader(key)
+	r.assert.Equal(value, expected, "header value is not equal to expected")
+}
+
+// AssertHeaderContains checks if a header exists and looks for
+// an expected part.
+func (r *Response) AssertHeaderContains(key, expected string) {
+	value := r.AssertHeader(key)
+	r.assert.Substring(expected, value, "header value does not contain expected")
 }
 
 // AssertCookie checks if a cookie exists and retrieves it.
-func (r *Response) AssertCookie(assert audit.Assertion, key string) string {
-	assert.NotEmpty(r.Cookies, "response contains no cookies")
+func (r *Response) AssertCookie(key string) string {
+	r.assert.NotEmpty(r.Cookies, "response contains no cookies")
 	value, ok := r.Cookies[key]
-	assert.True(ok, "cookie '"+key+"' not found")
+	r.assert.True(ok, "cookie '"+key+"' not found")
 	return value
 }
 
-// AssertContent retrieves the content based on the content type
+// AssertCookieEquals checks if a cookie exists and compares
+// it to an expected one.
+func (r *Response) AssertCookieEquals(key, expected string) {
+	value := r.AssertCookie(key)
+	r.assert.Equal(value, expected, "cookie value is not equal to expected")
+}
+
+// AssertCookieContains checks if a cookie exists and looks for
+// an expected part.
+func (r *Response) AssertCookieContains(key, expected string) {
+	value := r.AssertCookie(key)
+	r.assert.Substring(expected, value, "cookie value does not contain expected")
+}
+
+// AssertUnmarshalledBody retrieves the body based on the content type
 // and unmarshals it accordingly.
-func (r *Response) AssertContent(assert audit.Assertion, data interface{}) {
+func (r *Response) AssertUnmarshalledBody(data interface{}) {
 	contentType, ok := r.Header[HeaderContentType]
-	assert.True(ok)
+	r.assert.True(ok)
 	switch contentType {
 	case ApplicationGOB:
 		body := bytes.NewBuffer(r.Body)
 		dec := gob.NewDecoder(body)
 		err := dec.Decode(data)
-		assert.Nil(err, "cannot decode GOB body")
+		r.assert.Nil(err, "cannot decode GOB body")
 	case ApplicationJSON:
 		err := json.Unmarshal(r.Body, data)
-		assert.Nil(err, "cannot unmarshal JSON body")
+		r.assert.Nil(err, "cannot unmarshal JSON body")
 	case ApplicationXML:
 		err := xml.Unmarshal(r.Body, data)
-		assert.Nil(err, "cannot unmarshal XML body")
+		r.assert.Nil(err, "cannot unmarshal XML body")
 	default:
-		assert.Fail("unknown content type: " + contentType)
+		r.assert.Fail("unknown content type: " + contentType)
 	}
 }
 
-// AssertContentMatch checks if the content matches a regular expression.
-func (r *Response) AssertContentMatch(assert audit.Assertion, pattern string) {
+// AssertBodyMatches checks if the body matches a regular expression.
+func (r *Response) AssertBodyMatches(pattern string) {
 	ok, err := regexp.MatchString(pattern, string(r.Body))
-	assert.Nil(err, "illegal content match pattern")
-	assert.True(ok, "body doesn't match pattern")
+	r.assert.Nil(err, "illegal content match pattern")
+	r.assert.True(ok, "body doesn't match pattern")
+}
+
+// AssertBodyContains checks if the body contains a string.
+func (r *Response) AssertBodyContains(expected string) {
+	r.assert.Contents(expected, r.Body, "body doesn't contains expected")
 }
 
 //--------------------
@@ -264,7 +307,7 @@ func (ts *testServer) DoRequest(req *Request) *Response {
 		}
 		httpReq.AddCookie(cookie)
 	}
-	// Check if request shall be processed before performed.
+	// Check if request shall be pre-processed before performed.
 	if req.RequestProcessor != nil {
 		httpReq = req.RequestProcessor(httpReq)
 	}
@@ -309,6 +352,7 @@ func (ts *testServer) response(hr *http.Response) *Response {
 	ts.assert.Nil(err, "cannot read response")
 	defer hr.Body.Close()
 	return &Response{
+		assert:  ts.assert,
 		Status:  hr.StatusCode,
 		Header:  respHeader,
 		Cookies: respCookies,

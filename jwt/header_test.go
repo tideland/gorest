@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - JSON Web Token - Unit Tests
 //
-// Copyright (C) 2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -13,7 +13,6 @@ package jwt_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -46,17 +45,14 @@ func TestDecodeRequest(t *testing.T) {
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
 	assert.Nil(err)
 	// Perform test request.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
+	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
+	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
+	req.SetRequestProcessor(func(req *http.Request) *http.Request {
+		return jwt.AddTokenToRequest(req, jwtIn)
 	})
-	var claimsOut jwt.Claims
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp := ts.DoRequest(req)
+	claimsOut := jwt.Claims{}
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 }
 
@@ -76,29 +72,19 @@ func TestDecodeCachedRequest(t *testing.T) {
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, true))
 	assert.Nil(err)
 	// Perform first test request.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
+	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
+	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
+	req.SetRequestProcessor(func(req *http.Request) *http.Request {
+		return jwt.AddTokenToRequest(req, jwtIn)
 	})
-	var claimsOut jwt.Claims
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp := ts.DoRequest(req)
+	claimsOut := jwt.Claims{}
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 	// Perform second test request.
-	resp = ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
-	})
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp = ts.DoRequest(req)
+	claimsOut = jwt.Claims{}
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 }
 
@@ -118,17 +104,14 @@ func TestVerifyRequest(t *testing.T) {
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, false))
 	assert.Nil(err)
 	// Perform test request.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
+	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
+	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
+	req.SetRequestProcessor(func(req *http.Request) *http.Request {
+		return jwt.AddTokenToRequest(req, jwtIn)
 	})
-	var claimsOut jwt.Claims
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp := ts.DoRequest(req)
+	claimsOut := jwt.Claims{}
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 }
 
@@ -148,29 +131,18 @@ func TestVerifyCachedRequest(t *testing.T) {
 	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, true))
 	assert.Nil(err)
 	// Perform first test request.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
+	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
+	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
+	req.SetRequestProcessor(func(req *http.Request) *http.Request {
+		return jwt.AddTokenToRequest(req, jwtIn)
 	})
-	var claimsOut jwt.Claims
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp := ts.DoRequest(req)
+	claimsOut := jwt.Claims{}
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 	// Perform second test request.
-	resp = ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/jwt/1234567890",
-		Header: restaudit.KeyValues{"Accept": "application/json"},
-		RequestProcessor: func(req *http.Request) *http.Request {
-			return jwt.AddTokenToRequest(req, jwtIn)
-		},
-	})
-	err = json.Unmarshal(resp.Body, &claimsOut)
-	assert.Nil(err)
+	resp = ts.DoRequest(req)
+	resp.AssertUnmarshalledBody(&claimsOut)
 	assert.Equal(claimsOut, claimsIn)
 }
 
