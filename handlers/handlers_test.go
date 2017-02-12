@@ -51,11 +51,9 @@ func TestWrapperHandler(t *testing.T) {
 	err := mux.Register("test", "wrapper", handlers.NewWrapperHandler("wrapper", handler))
 	assert.Nil(err)
 	// Perform test requests.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/wrapper",
-	})
-	assert.Equal(string(resp.Body), data)
+	req := restaudit.NewRequest("GET", "/test/wrapper")
+	resp := ts.DoRequest(req)
+	resp.AssertBodyContains(data)
 }
 
 // TestFileServeHandler tests the serving of files.
@@ -81,16 +79,12 @@ func TestFileServeHandler(t *testing.T) {
 	err = mux.Register("test", "files", handlers.NewFileServeHandler("files", dir))
 	assert.Nil(err)
 	// Perform test requests.
-	resp := ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/files/foo.txt",
-	})
-	assert.Equal(string(resp.Body), data)
-	resp = ts.DoRequest(&restaudit.Request{
-		Method: "GET",
-		Path:   "/test/files/does.not.exist",
-	})
-	assert.Equal(string(resp.Body), "404 page not found\n")
+	req := restaudit.NewRequest("GET", "/test/files/foo.txt")
+	resp := ts.DoRequest(req)
+	resp.AssertBodyContains(data)
+	req = restaudit.NewRequest("GET", "/test/files/does.not.exist")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("404 page not found")
 }
 
 // TestFileUploadHandler tests the uploading of files.
@@ -247,11 +241,12 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			err := mux.Register("jwt", test.id, handlers.NewAuditHandler("audit", assert, test.auditf))
 			assert.Nil(err)
 		}
-		var requestProcessor func(req *http.Request) *http.Request
+		// Create request.
+		req := restaudit.NewRequest("GET", "/jwt/"+test.id+"/1234567890")
 		if test.tokener != nil {
-			requestProcessor = func(req *http.Request) *http.Request {
+			req.SetRequestProcessor(func(req *http.Request) *http.Request {
 				return jwt.AddTokenToRequest(req, test.tokener())
-			}
+			})
 		}
 		// Make request(s).
 		runs := 1
@@ -259,12 +254,8 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 			runs = test.runs
 		}
 		for i := 0; i < runs; i++ {
-			resp := ts.DoRequest(&restaudit.Request{
-				Method:           "GET",
-				Path:             "/jwt/" + test.id + "/1234567890",
-				RequestProcessor: requestProcessor,
-			})
-			assert.Equal(resp.Status, test.status)
+			resp := ts.DoRequest(req)
+			resp.AssertStatusEquals(test.status)
 		}
 	}
 }

@@ -14,7 +14,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.11.0
+Version 2.12.0
 
 ## Packages
 
