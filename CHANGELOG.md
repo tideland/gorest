@@ -1,9 +1,14 @@
 # Tideland Go REST Server Library
 
+## 2017-03-XX
+
+- Rename internal *envelope* to public *Feedback* in *rest*
+- Added *ReadFeedback()* to *Response* in *request*
+
 ## 2017-02-12
 
 - Some renamings in *Request*  and *Response*, sadly
-  to the previous minor release
+  incompatible to the previous minor release
 - More convenience helpers for testing
 - Adopted new testing to more packages
 - Using http package constants instead of own
