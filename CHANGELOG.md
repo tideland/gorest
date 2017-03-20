@@ -4,6 +4,8 @@
 
 - Rename internal *envelope* to public *Feedback* in *rest*
 - Added *ReadFeedback()* to *Response* in *request*
+- Asserts in *restaudit* now internally increase the callstack 
+  offset so that the correct test line number is shown
 
 ## 2017-02-12
 
@@ -13,7 +15,7 @@
 - Adopted new testing to more packages
 - Using http package constants instead of own
   plain strings
-- Added documentation to restaudit
+- Added documentation to *restaudit*
 
 ## 2017-02-10
 
