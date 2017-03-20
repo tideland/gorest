@@ -6,6 +6,7 @@
 - Added *ReadFeedback()* to *Response* in *request*
 - Asserts in *restaudit* now internally increase the callstack 
   offset so that the correct test line number is shown
+- Added *Response.AssertBodyGrep()* to *restaudit*
 
 ## 2017-02-12
 

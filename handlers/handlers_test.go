@@ -54,6 +54,8 @@ func TestWrapperHandler(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/test/wrapper")
 	resp := ts.DoRequest(req)
 	resp.AssertBodyContains(data)
+	punctuation := resp.AssertBodyGrep("[,!]")
+	assert.Length(punctuation, 2)
 }
 
 // TestFileServeHandler tests the serving of files.
