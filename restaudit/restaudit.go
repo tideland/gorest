@@ -272,6 +272,15 @@ func (r *Response) AssertBodyMatches(pattern string) {
 	r.assert.True(ok, "body doesn't match pattern")
 }
 
+// AssertBodyGrep greps content out of the body.
+func (r *Response) AssertBodyGrep(pattern string) []string {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
+	expr, err := regexp.Compile(pattern)
+	r.assert.Nil(err, "illegal content grep pattern")
+	return expr.FindAllString(string(r.Body), -1)
+}
+
 // AssertBodyContains checks if the body contains a string.
 func (r *Response) AssertBodyContains(expected string) {
 	restore := r.assert.IncrCallstackOffset()
