@@ -128,6 +128,10 @@ type Response interface {
 	// Read decodes the content into the passed data depending
 	// on the content type.
 	Read(data interface{}) error
+
+	// ReadFeedback tries to unmarshal the content of the
+	// response into a rest package feedback.
+	ReadFeedback() (rest.Feedback, bool)
 }
 
 // response implements Response.
@@ -195,6 +199,16 @@ func (r *response) Read(data interface{}) error {
 		return nil
 	}
 	return errors.New(ErrInvalidContentType, errorMessages, r.contentType)
+}
+
+// ReadFeedback implements the Response interface.
+func (r *response) ReadFeedback() (rest.Feedback, bool) {
+	fb := rest.Feedback{}
+	err := r.Read(&fb)
+	if err != nil {
+		return rest.Feedback{}, false
+	}
+	return fb, true
 }
 
 //--------------------

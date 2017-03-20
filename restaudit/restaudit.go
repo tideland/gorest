@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/audit"
+	"github.com/tideland/gorest/rest"
 )
 
 //--------------------
@@ -167,11 +168,15 @@ type Response struct {
 
 // AssertStatusEquals checks if the status is the expected one.
 func (r *Response) AssertStatusEquals(expected int) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	r.assert.Equal(r.Status, expected, "response status differs")
 }
 
 // AssertHeader checks if a header exists and retrieves it.
 func (r *Response) AssertHeader(key string) string {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	r.assert.NotEmpty(r.Header, "response contains no header")
 	value, ok := r.Header[key]
 	r.assert.True(ok, "header '"+key+"' not found")
@@ -181,6 +186,8 @@ func (r *Response) AssertHeader(key string) string {
 // AssertHeaderEquals checks if a header exists and compares
 // it to an expected one.
 func (r *Response) AssertHeaderEquals(key, expected string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	value := r.AssertHeader(key)
 	r.assert.Equal(value, expected, "header value is not equal to expected")
 }
@@ -188,12 +195,16 @@ func (r *Response) AssertHeaderEquals(key, expected string) {
 // AssertHeaderContains checks if a header exists and looks for
 // an expected part.
 func (r *Response) AssertHeaderContains(key, expected string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	value := r.AssertHeader(key)
 	r.assert.Substring(expected, value, "header value does not contain expected")
 }
 
 // AssertCookie checks if a cookie exists and retrieves it.
 func (r *Response) AssertCookie(key string) string {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	r.assert.NotEmpty(r.Cookies, "response contains no cookies")
 	value, ok := r.Cookies[key]
 	r.assert.True(ok, "cookie '"+key+"' not found")
@@ -203,6 +214,8 @@ func (r *Response) AssertCookie(key string) string {
 // AssertCookieEquals checks if a cookie exists and compares
 // it to an expected one.
 func (r *Response) AssertCookieEquals(key, expected string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	value := r.AssertCookie(key)
 	r.assert.Equal(value, expected, "cookie value is not equal to expected")
 }
@@ -210,6 +223,8 @@ func (r *Response) AssertCookieEquals(key, expected string) {
 // AssertCookieContains checks if a cookie exists and looks for
 // an expected part.
 func (r *Response) AssertCookieContains(key, expected string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	value := r.AssertCookie(key)
 	r.assert.Substring(expected, value, "cookie value does not contain expected")
 }
@@ -217,6 +232,8 @@ func (r *Response) AssertCookieContains(key, expected string) {
 // AssertUnmarshalledBody retrieves the body based on the content type
 // and unmarshals it accordingly.
 func (r *Response) AssertUnmarshalledBody(data interface{}) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	contentType, ok := r.Header[HeaderContentType]
 	r.assert.True(ok)
 	switch contentType {
@@ -236,15 +253,38 @@ func (r *Response) AssertUnmarshalledBody(data interface{}) {
 	}
 }
 
+// AssertUnmarshalledFeedback retrieves a rest.Feedback as body out of
+// response and returns it for further tests.
+func (r *Response) AssertUnmarshalledFeedback() rest.Feedback {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
+	fb := rest.Feedback{}
+	r.AssertUnmarshalledBody(&fb)
+	return fb
+}
+
 // AssertBodyMatches checks if the body matches a regular expression.
 func (r *Response) AssertBodyMatches(pattern string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	ok, err := regexp.MatchString(pattern, string(r.Body))
 	r.assert.Nil(err, "illegal content match pattern")
 	r.assert.True(ok, "body doesn't match pattern")
 }
 
+// AssertBodyGrep greps content out of the body.
+func (r *Response) AssertBodyGrep(pattern string) []string {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
+	expr, err := regexp.Compile(pattern)
+	r.assert.Nil(err, "illegal content grep pattern")
+	return expr.FindAllString(string(r.Body), -1)
+}
+
 // AssertBodyContains checks if the body contains a string.
 func (r *Response) AssertBodyContains(expected string) {
+	restore := r.assert.IncrCallstackOffset()
+	defer restore()
 	r.assert.Contents(expected, r.Body, "body doesn't contains expected")
 }
 

@@ -61,17 +61,32 @@ var (
 )
 
 //--------------------
-// ENVELOPE
+// FEEDBACK
 //--------------------
 
-// envelope is a helper to give a qualified feedback in RESTful requests.
+// Feedback is a helper to give a qualified feedback in RESTful requests.
 // It contains wether the request has been successful, a message, and in
 // case of success some payload if wanted.
-type envelope struct {
+type Feedback struct {
 	StatusCode int         `json:"statusCode" xml:"statusCode"`
 	Status     string      `json:"status" xml:"status"`
 	Message    string      `json:"message,omitempty" xml:"message,omitempty"`
 	Payload    interface{} `json:"payload,omitempty" xml:"payload,omitempty"`
+}
+
+// PositiveFeedback writes a positive feedback envelope to the formatter.
+func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) (bool, error) {
+	fmsg := fmt.Sprintf(msg, args...)
+	return false, f.Write(StatusOK, Feedback{StatusOK, "success", fmsg, payload})
+}
+
+// NegativeFeedback writes a negative feedback envelope to the formatter.
+// The message is also logged.
+func NegativeFeedback(f Formatter, statusCode int, msg string, args ...interface{}) (bool, error) {
+	fmsg := fmt.Sprintf(msg, args...)
+	lmsg := fmt.Sprintf("(status code %d) "+fmsg, statusCode)
+	logger.Warningf(lmsg)
+	return false, f.Write(statusCode, Feedback{statusCode, "fail", fmsg, nil})
 }
 
 //--------------------
@@ -88,21 +103,6 @@ type Formatter interface {
 	// format, reads its body and decodes it to the value pointed to by
 	// data.
 	Read(data interface{}) error
-}
-
-// PositiveFeedback writes a positive feedback envelope to the formatter.
-func PositiveFeedback(f Formatter, payload interface{}, msg string, args ...interface{}) (bool, error) {
-	fmsg := fmt.Sprintf(msg, args...)
-	return false, f.Write(StatusOK, envelope{StatusOK, "success", fmsg, payload})
-}
-
-// NegativeFeedback writes a negative feedback envelope to the formatter.
-// The message is also logged.
-func NegativeFeedback(f Formatter, statusCode int, msg string, args ...interface{}) (bool, error) {
-	fmsg := fmt.Sprintf(msg, args...)
-	lmsg := fmt.Sprintf("(status code %d) "+fmsg, statusCode)
-	logger.Warningf(lmsg)
-	return false, f.Write(statusCode, envelope{statusCode, "fail", fmsg, nil})
 }
 
 //--------------------
