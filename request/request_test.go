@@ -91,6 +91,37 @@ var tests = []struct {
 			assert.Equal(values["name"][0], "foo")
 		},
 	}, {
+		name:     "GET returns a positive feedback",
+		method:   "GET",
+		resource: "item",
+		id:       "positive-feedback",
+		params: &request.Parameters{
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response request.Response) {
+			fb, ok := response.ReadFeedback()
+			assert.True(ok)
+			assert.Equal(fb.StatusCode, rest.StatusOK)
+			assert.Equal(fb.Status, "success")
+			assert.Equal(fb.Message, "positive feedback")
+			assert.Equal(fb.Payload, "ok")
+		},
+	}, {
+		name:     "GET returns a negative feedback",
+		method:   "GET",
+		resource: "item",
+		id:       "negative-feedback",
+		params: &request.Parameters{
+			Accept: rest.ContentTypeJSON,
+		},
+		check: func(assert audit.Assertion, response request.Response) {
+			fb, ok := response.ReadFeedback()
+			assert.True(ok)
+			assert.Equal(fb.StatusCode, rest.StatusBadRequest)
+			assert.Equal(fb.Status, "fail")
+			assert.Equal(fb.Message, "negative feedback")
+		},
+	}, {
 		name:     "HEAD returns the resource ID as header",
 		method:   "HEAD",
 		resource: "item",
@@ -265,6 +296,14 @@ func (th *TestHandler) Init(env rest.Environment, domain, resource string) error
 
 func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	th.assert.Logf("handler #%d: GET", th.index)
+	// Special behavior for feedback tests.
+	switch job.ResourceID() {
+	case "positive-feedback":
+		return rest.PositiveFeedback(job.JSON(true), "ok", "positive feedback")
+	case "negative-feedback":
+		return rest.NegativeFeedback(job.JSON(true), rest.StatusBadRequest, "negative feedback")
+	}
+	// Regular behavior.
 	content := &Content{
 		Index:   th.index,
 		Version: 1,

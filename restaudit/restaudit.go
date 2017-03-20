@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/audit"
+	"github.com/tideland/gorest/rest"
 )
 
 //--------------------
@@ -234,6 +235,14 @@ func (r *Response) AssertUnmarshalledBody(data interface{}) {
 	default:
 		r.assert.Fail("unknown content type: " + contentType)
 	}
+}
+
+// AssertUnmarshalledFeedback retrieves a rest.Feedback as body out of
+// response and returns it for further tests.
+func (r *Response) AssertUnmarshalledFeedback() rest.Feedback {
+	fb := rest.Feedback{}
+	r.AssertUnmarshalledBody(&fb)
+	return fb
 }
 
 // AssertBodyMatches checks if the body matches a regular expression.
