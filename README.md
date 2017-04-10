@@ -12,6 +12,9 @@ The library earlier has been known as `web` package of the
 
 I hope you like it. ;)
 
+[![Sourcegraph](https://sourcegraph.com/github.com/tideland/gorest/-/badge.svg)](https://sourcegraph.com/github.com/tideland/gorest?badge)
+[![Go Report Card](https://goreportcard.com/badge/github.com/tideland/gorest)](https://goreportcard.com/report/github.com/tideland/gorest)
+
 ## Version
 
 Version 2.13.0
