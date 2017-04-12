@@ -19,6 +19,7 @@ import (
 // CONSTANTS
 //--------------------
 
+// Error codes of the request package.
 const (
 	ErrNoServerDefined = iota + 1
 	ErrCannotPrepareRequest

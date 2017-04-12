@@ -33,6 +33,7 @@ import (
 // CONSTENTS
 //--------------------
 
+// Request and response header fields and values for testing purposes.
 const (
 	HeaderAccept      = "Accept"
 	HeaderContentType = "Content-Type"

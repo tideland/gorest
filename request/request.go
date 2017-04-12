@@ -40,7 +40,9 @@ import (
 // key is to address the servers inside a context.
 type key int
 
-var serversKey key = 0
+const (
+	serversKey key = iota
+)
 
 // server contains the configuration of one server.
 type server struct {
@@ -82,7 +84,7 @@ func (s *servers) Add(domain, url string, transport *http.Transport) {
 		s.servers[domain] = append(srvs, &server{url, transport})
 		return
 	}
-	s.servers[domain] = []*server{&server{url, transport}}
+	s.servers[domain] = []*server{{url, transport}}
 }
 
 // Caller implements the Servers interface.
