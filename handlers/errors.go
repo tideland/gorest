@@ -19,6 +19,7 @@ import (
 // CONSTANTS
 //--------------------
 
+// Error codes of the handlers package.
 const (
 	ErrUploadingFile = iota + 1
 	ErrDownloadingFile

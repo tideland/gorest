@@ -17,10 +17,12 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
 	"encoding/asn1"
 	"math/big"
+
+	// Import hashing packages just to register them via init().
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 
 	"github.com/tideland/golib/errors"
 )
@@ -150,14 +152,13 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 				return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
 			}
 			return Signature(sig), nil
-		} else {
-			// RSA.
-			sig, err := rsa.SignPKCS1v15(rand.Reader, key, h, hashSum())
-			if err != nil {
-				return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
-			}
-			return Signature(sig), nil
 		}
+		// RSA.
+		sig, err := rsa.SignPKCS1v15(rand.Reader, key, h, hashSum())
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
+		}
+		return Signature(sig), nil
 	case string:
 		// None algorithm.
 		if a != "none" {

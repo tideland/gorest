@@ -422,7 +422,7 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 	return b, nil
 }
 
-// MarshalJSON implements the json.Marshaller interface.
+// UnmarshalJSON implements the json.Marshaller interface.
 func (c *Claims) UnmarshalJSON(b []byte) error {
 	if b == nil {
 		return nil

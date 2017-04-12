@@ -19,6 +19,7 @@ import (
 // CONSTANTS
 //--------------------
 
+// Error codes of the JWT package.
 const (
 	ErrCannotEncode = iota + 1
 	ErrCannotDecode
