@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - JSON Web Token
 //
-// Copyright (C) 2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -29,8 +29,9 @@ import (
 // key for the storage of values in a context.
 type key int
 
-// jwtKey for the storrage of a JWT.
-var jwtKey key = 0
+const (
+	jwtKey key = iota
+)
 
 // NewContext returns a new context that carries a token.
 func NewContext(ctx context.Context, token JWT) context.Context {
@@ -47,6 +48,8 @@ func FromContext(ctx context.Context) (JWT, bool) {
 // JSON Web Token
 //--------------------
 
+// JWT describes the interface to access the parts of a
+// JSON Web Token.
 type JWT interface {
 	// Stringer provides the String() method.
 	fmt.Stringer
@@ -79,7 +82,7 @@ type jwt struct {
 	token     string
 }
 
-// Encodes creates a JSON Web Token for the given claims
+// Encode creates a JSON Web Token for the given claims
 // based on key and algorithm.
 func Encode(claims Claims, key Key, algorithm Algorithm) (JWT, error) {
 	jwt := &jwt{

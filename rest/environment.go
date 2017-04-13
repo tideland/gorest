@@ -22,6 +22,7 @@ import (
 // ENVIRONMENT
 //--------------------
 
+// Environment describes the environment of a RESTful application.
 type Environment interface {
 	// Context returns the context of the environment.
 	Context() context.Context
