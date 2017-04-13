@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - JSON Web Token - Keys
 //
-// Copyright (C) 2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -28,7 +28,6 @@ import (
 
 // Key is the used key to sign a token. The real implementation
 // controls signing and verification.
-
 type Key interface{}
 
 // ReadECPrivateKey reads a PEM formated ECDSA private key

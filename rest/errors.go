@@ -19,6 +19,7 @@ import (
 // CONSTANTS
 //--------------------
 
+// Error codes of the rest package.
 const (
 	ErrDuplicateHandler = iota + 1
 	ErrInitHandler

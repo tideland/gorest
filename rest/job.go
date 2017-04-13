@@ -259,7 +259,7 @@ func (j *job) Languages() Languages {
 			languages = append(languages, Language{lv[0], value})
 		}
 	}
-	sort.Reverse(languages)
+	languages = sort.Reverse(languages).(Languages)
 	return languages
 }
 
