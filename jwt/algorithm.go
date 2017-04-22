@@ -17,10 +17,12 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
-	_ "crypto/sha256"
-	_ "crypto/sha512"
 	"encoding/asn1"
 	"math/big"
+
+	// Import hashing packages just to register them via init().
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 
 	"github.com/tideland/golib/errors"
 )
@@ -105,59 +107,16 @@ func (a Algorithm) isRSAPSS() bool {
 
 // sign signs the passed data based on the key and the passed hash.
 func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
-	hashSum := func() []byte {
-		hasher := h.New()
-		hasher.Write(data)
-		return hasher.Sum(nil)
-	}
 	switch key := k.(type) {
 	case *ecdsa.PrivateKey:
 		// ECDSA algorithms.
-		if a[0] != 'E' {
-			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
-		}
-		r, s, err := ecdsa.Sign(rand.Reader, key, hashSum())
-		if err != nil {
-			return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
-		}
-		sig, err := asn1.Marshal(ecPoint{r, s})
-		if err != nil {
-			return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
-		}
-		return Signature(sig), nil
+		return a.signECDSA(data, key, h)
 	case []byte:
 		// HMAC algorithms.
-		if a[0] != 'H' {
-			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
-		}
-		hasher := hmac.New(h.New, key)
-		hasher.Write(data)
-		sig := hasher.Sum(nil)
-		return Signature(sig), nil
+		return a.signHMAC(data, key, h)
 	case *rsa.PrivateKey:
 		// RSA and RSAPSS algorithms.
-		if a[0] != 'P' && a[0] != 'R' {
-			return nil, errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
-		}
-		if a.isRSAPSS() {
-			// RSAPSS.
-			options := &rsa.PSSOptions{
-				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:       h,
-			}
-			sig, err := rsa.SignPSS(rand.Reader, key, h, hashSum(), options)
-			if err != nil {
-				return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
-			}
-			return Signature(sig), nil
-		} else {
-			// RSA.
-			sig, err := rsa.SignPKCS1v15(rand.Reader, key, h, hashSum())
-			if err != nil {
-				return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
-			}
-			return Signature(sig), nil
-		}
+		return a.signRSA(data, key, h)
 	case string:
 		// None algorithm.
 		if a != "none" {
@@ -170,62 +129,71 @@ func (a Algorithm) sign(data []byte, k Key, h crypto.Hash) (Signature, error) {
 	}
 }
 
+// signECDSA signs the data using the ECDSA algorithm.
+func (a Algorithm) signECDSA(data []byte, key *ecdsa.PrivateKey, h crypto.Hash) (Signature, error) {
+	if a[0] != 'E' {
+		return nil, errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
+	}
+	r, s, err := ecdsa.Sign(rand.Reader, key, hashSum(data, h))
+	if err != nil {
+		return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
+	}
+	sig, err := asn1.Marshal(ecPoint{r, s})
+	if err != nil {
+		return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
+	}
+	return Signature(sig), nil
+}
+
+// signHMAC signs the data using the HMAC algorithm.
+func (a Algorithm) signHMAC(data, key []byte, h crypto.Hash) (Signature, error) {
+	if a[0] != 'H' {
+		return nil, errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
+	}
+	hasher := hmac.New(h.New, key)
+	hasher.Write(data)
+	sig := hasher.Sum(nil)
+	return Signature(sig), nil
+}
+
+// signRSA signs the data using the RSAPSS or RSA algorithm.
+func (a Algorithm) signRSA(data []byte, key *rsa.PrivateKey, h crypto.Hash) (Signature, error) {
+	if a[0] != 'P' && a[0] != 'R' {
+		return nil, errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
+	}
+	if a.isRSAPSS() {
+		// RSAPSS.
+		options := &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthAuto,
+			Hash:       h,
+		}
+		sig, err := rsa.SignPSS(rand.Reader, key, h, hashSum(data, h), options)
+		if err != nil {
+			return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
+		}
+		return Signature(sig), nil
+	}
+	// RSA.
+	sig, err := rsa.SignPKCS1v15(rand.Reader, key, h, hashSum(data, h))
+	if err != nil {
+		return nil, errors.Annotate(err, ErrCannotSign, errorMessages)
+	}
+	return Signature(sig), nil
+}
+
 // verify checks if the signature is correct for the passed data
 // based on the key and the passed hash.
 func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) error {
-	hashSum := func() []byte {
-		hasher := h.New()
-		hasher.Write(data)
-		return hasher.Sum(nil)
-	}
 	switch key := k.(type) {
 	case *ecdsa.PublicKey:
 		// ECDSA algorithms.
-		if a[0] != 'E' {
-			return errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
-		}
-		var ecp ecPoint
-		if _, err := asn1.Unmarshal(sig, &ecp); err != nil {
-			return errors.Annotate(err, ErrCannotVerify, errorMessages)
-		}
-		if !ecdsa.Verify(key, hashSum(), ecp.R, ecp.S) {
-			return errors.New(ErrInvalidSignature, errorMessages)
-		}
-		return nil
+		return a.verifyECDSA(data, sig, key, h)
 	case []byte:
 		// HMAC algorithms.
-		if a[0] != 'H' {
-			return errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
-		}
-		expectedSig, err := a.sign(data, k, h)
-		if err != nil {
-			return errors.Annotate(err, ErrCannotVerify, errorMessages)
-		}
-		if !hmac.Equal(sig, expectedSig) {
-			return errors.New(ErrInvalidSignature, errorMessages)
-		}
-		return nil
+		return a.verifyHMAC(data, sig, key, h)
 	case *rsa.PublicKey:
 		// RSA and RSAPSS algorithms.
-		if a[0] != 'P' && a[0] != 'R' {
-			return errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
-		}
-		if a.isRSAPSS() {
-			// RSAPSS.
-			options := &rsa.PSSOptions{
-				SaltLength: rsa.PSSSaltLengthAuto,
-				Hash:       h,
-			}
-			if err := rsa.VerifyPSS(key, h, hashSum(), sig, options); err != nil {
-				return errors.Annotate(err, ErrInvalidSignature, errorMessages)
-			}
-		} else {
-			// RSA.
-			if err := rsa.VerifyPKCS1v15(key, h, hashSum(), sig); err != nil {
-				return errors.Annotate(err, ErrInvalidSignature, errorMessages)
-			}
-		}
-		return nil
+		return a.verifyRSA(data, sig, key, h)
 	case string:
 		// None algorithm.
 		if a != "none" {
@@ -239,6 +207,70 @@ func (a Algorithm) verify(data []byte, sig Signature, k Key, h crypto.Hash) erro
 		// No valid key type.
 		return errors.New(ErrInvalidKeyType, errorMessages, k)
 	}
+}
+
+// verifyECDSA verifies the data using the ECDSA algorithm.
+func (a Algorithm) verifyECDSA(data []byte, sig Signature, key *ecdsa.PublicKey, h crypto.Hash) error {
+	if a[0] != 'E' {
+		return errors.New(ErrInvalidCombination, errorMessages, a, "ECDSA")
+	}
+	var ecp ecPoint
+	if _, err := asn1.Unmarshal(sig, &ecp); err != nil {
+		return errors.Annotate(err, ErrCannotVerify, errorMessages)
+	}
+	if !ecdsa.Verify(key, hashSum(data, h), ecp.R, ecp.S) {
+		return errors.New(ErrInvalidSignature, errorMessages)
+	}
+	return nil
+}
+
+// verifyHMAC verifies the data using the HMAC algorithm.
+func (a Algorithm) verifyHMAC(data []byte, sig Signature, key []byte, h crypto.Hash) error {
+	if a[0] != 'H' {
+		return errors.New(ErrInvalidCombination, errorMessages, a, "HMAC")
+	}
+	expectedSig, err := a.sign(data, key, h)
+	if err != nil {
+		return errors.Annotate(err, ErrCannotVerify, errorMessages)
+	}
+	if !hmac.Equal(sig, expectedSig) {
+		return errors.New(ErrInvalidSignature, errorMessages)
+	}
+	return nil
+}
+
+// verifyRSA verifies the data using the RSAPSS or RSS algorithm.
+func (a Algorithm) verifyRSA(data []byte, sig Signature, key *rsa.PublicKey, h crypto.Hash) error {
+	if a[0] != 'P' && a[0] != 'R' {
+		return errors.New(ErrInvalidCombination, errorMessages, a, "RSA(PSS)")
+	}
+	if a.isRSAPSS() {
+		// RSAPSS.
+		options := &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthAuto,
+			Hash:       h,
+		}
+		if err := rsa.VerifyPSS(key, h, hashSum(data, h), sig, options); err != nil {
+			return errors.Annotate(err, ErrInvalidSignature, errorMessages)
+		}
+	} else {
+		// RSA.
+		if err := rsa.VerifyPKCS1v15(key, h, hashSum(data, h), sig); err != nil {
+			return errors.Annotate(err, ErrInvalidSignature, errorMessages)
+		}
+	}
+	return nil
+}
+
+//--------------------
+// HELPERS
+//--------------------
+
+// hashSum determines the hash sum of the passed data.
+func hashSum(data []byte, h crypto.Hash) []byte {
+	hasher := h.New()
+	hasher.Write(data)
+	return hasher.Sum(nil)
 }
 
 // EOF

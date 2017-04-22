@@ -62,7 +62,7 @@ type cache struct {
 // The duration of the interval controls how often the background
 // cleanup is running. Final configuration parameter is the maximum
 // number of entries inside the cache. If these grow too fast the
-// ttl will be temporarilly reduced for cleanup.
+// ttl will be temporarily reduced for cleanup.
 func NewCache(ttl, leeway, interval time.Duration, maxEntries int) Cache {
 	c := &cache{
 		entries:    map[string]*cacheEntry{},

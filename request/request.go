@@ -40,7 +40,9 @@ import (
 // key is to address the servers inside a context.
 type key int
 
-var serversKey key = 0
+const (
+	serversKey key = iota
+)
 
 // server contains the configuration of one server.
 type server struct {
@@ -82,7 +84,7 @@ func (s *servers) Add(domain, url string, transport *http.Transport) {
 		s.servers[domain] = append(srvs, &server{url, transport})
 		return
 	}
-	s.servers[domain] = []*server{&server{url, transport}}
+	s.servers[domain] = []*server{{url, transport}}
 }
 
 // Caller implements the Servers interface.
@@ -367,10 +369,26 @@ func (c *caller) Options(resource, resourceID string, params *Parameters) (Respo
 
 // request performs all requests.
 func (c *caller) request(method, resource, resourceID string, params *Parameters) (Response, error) {
-	if params == nil {
-		params = &Parameters{}
+	// Preparation.
+	client, urlStr, err := c.prepareClient(resource, resourceID)
+	if err != nil {
+		return nil, err
 	}
-	// Prepare client.
+	request, err := c.prepareRequest(method, urlStr, params)
+	if err != nil {
+		return nil, err
+	}
+	// Perform request.
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, errors.Annotate(err, ErrHTTPRequestFailed, errorMessages)
+	}
+	// Analyze response.
+	return analyzeResponse(response)
+}
+
+// prepareClient prepares the client and the URL for the call.
+func (c *caller) prepareClient(resource, resourceID string) (*http.Client, string, error) {
 	// TODO Mue 2016-10-28 Add more algorithms than just random selection.
 	srv := c.srvs[rand.Intn(len(c.srvs))]
 	client := &http.Client{}
@@ -379,7 +397,7 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 	}
 	u, err := url.Parse(srv.URL)
 	if err != nil {
-		return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
+		return nil, "", errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
 	}
 	upath := strings.Trim(u.Path, "/")
 	path := []string{upath, c.domain, resource}
@@ -387,11 +405,19 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 		path = append(path, resourceID)
 	}
 	u.Path = strings.Join(path, "/")
-	// Prepare request, check the parameters first.
+	return client, u.String(), nil
+}
+
+// prepareRequest prepares the request to perform.
+func (c *caller) prepareRequest(method, urlStr string, params *Parameters) (*http.Request, error) {
+	if params == nil {
+		params = &Parameters{}
+	}
 	var request *http.Request
+	var err error
 	if method == "GET" || method == "HEAD" {
 		// These allow only URL encoded.
-		request, err = http.NewRequest(method, u.String(), nil)
+		request, err = http.NewRequest(method, urlStr, nil)
 		if err != nil {
 			return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
 		}
@@ -407,7 +433,7 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 		if err != nil {
 			return nil, err
 		}
-		request, err = http.NewRequest(method, u.String(), body)
+		request, err = http.NewRequest(method, urlStr, body)
 		if err != nil {
 			return nil, errors.Annotate(err, ErrCannotPrepareRequest, errorMessages)
 		}
@@ -425,13 +451,7 @@ func (c *caller) request(method, resource, resourceID string, params *Parameters
 	if params.Accept != "" {
 		request.Header.Set("Accept", params.Accept)
 	}
-	// Perform request.
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, errors.Annotate(err, ErrHTTPRequestFailed, errorMessages)
-	}
-	// Analyze response.
-	return analyzeResponse(response)
+	return request, nil
 }
 
 // analyzeResponse creates a response struct out of the HTTP response.
