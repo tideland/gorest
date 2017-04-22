@@ -31,8 +31,8 @@ import (
 // CONST
 //--------------------
 
+// Standard REST status codes.
 const (
-	// Standard REST status codes.
 	StatusOK                  = http.StatusOK
 	StatusCreated             = http.StatusCreated
 	StatusNoContent           = http.StatusNoContent
@@ -42,8 +42,10 @@ const (
 	StatusNotFound            = http.StatusNotFound
 	StatusConflict            = http.StatusConflict
 	StatusInternalServerError = http.StatusInternalServerError
+)
 
-	// Standard REST content types.
+// Standard REST content types.
+const (
 	ContentTypePlain      = "text/plain"
 	ContentTypeHTML       = "text/html"
 	ContentTypeXML        = "application/xml"
@@ -93,6 +95,8 @@ func NegativeFeedback(f Formatter, statusCode int, msg string, args ...interface
 // FORMATTER
 //--------------------
 
+// Formatter allows reading or writing in handler methods based on the
+// implementing formats like JSON, XML, or GOB.
 type Formatter interface {
 	// Write encodes the passed data to implementers format and writes
 	// it with the passed status code and possible header values to the

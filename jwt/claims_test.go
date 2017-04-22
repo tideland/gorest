@@ -273,7 +273,7 @@ func TestClaimsAudience(t *testing.T) {
 	assert.True(ok)
 	old := claims.DeleteAudience()
 	assert.Equal(old, aud)
-	aud, ok = claims.Audience()
+	_, ok = claims.Audience()
 	assert.False(ok)
 }
 
@@ -313,7 +313,7 @@ func TestClaimsIdentifier(t *testing.T) {
 	assert.True(ok)
 	old := claims.DeleteIdentifier()
 	assert.Equal(old, jti)
-	jti, ok = claims.Identifier()
+	_, ok = claims.Identifier()
 	assert.False(ok)
 }
 
@@ -353,7 +353,7 @@ func TestClaimsIssuer(t *testing.T) {
 	assert.True(ok)
 	old := claims.DeleteIssuer()
 	assert.Equal(old, iss)
-	iss, ok = claims.Issuer()
+	_, ok = claims.Issuer()
 	assert.False(ok)
 }
 
@@ -393,7 +393,7 @@ func TestClaimsSubject(t *testing.T) {
 	assert.True(ok)
 	old := claims.DeleteSubject()
 	assert.Equal(old, sub)
-	sub, ok = claims.Subject()
+	_, ok = claims.Subject()
 	assert.False(ok)
 }
 
