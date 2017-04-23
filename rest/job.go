@@ -25,6 +25,17 @@ import (
 )
 
 //--------------------
+// CONSTANTS
+//--------------------
+
+// Path indexes for the different parts.
+const (
+	PathDomain = 0
+	PathResource = 1
+	PathResourceID = 2
+)
+
+//--------------------
 // JOB
 //--------------------
 
@@ -51,6 +62,10 @@ type Job interface {
 
 	// ResourceID return the requests resource ID.
 	ResourceID() string
+
+	// Path returns the parts of the URL path based on the
+	// index or an empty string.
+	Path(index int) string
 
 	// Context returns a job context also containing the
 	// job itself.
@@ -115,9 +130,7 @@ type job struct {
 	request        *http.Request
 	responseWriter http.ResponseWriter
 	version        version.Version
-	domain         string
-	resource       string
-	resourceID     string
+	path           []string
 }
 
 // newJob parses the URL and returns the prepared job.
@@ -127,32 +140,19 @@ func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 		environment:    env,
 		request:        r,
 		responseWriter: rw,
+		path: stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
+			if p == "" {
+				return "", false
+			}
+			return p, true
+		})[env.basepartsLen:],
 	}
-	// Split path for REST identifiers.
-	parts := stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
-		if p == "" {
-			return "", false
-		}
-		return p, true
-	})[env.basepartsLen:]
-	switch len(parts) {
-	case 3:
-		j.resourceID = parts[2]
-		j.resource = parts[1]
-		j.domain = parts[0]
-	case 2:
-		j.resource = parts[1]
-		j.domain = parts[0]
+	// Check path for defaults.
+	switch len(j.path) {
 	case 1:
-		j.resource = j.environment.defaultResource
-		j.domain = parts[0]
+		j.path = append(j.path, j.environment.defaultResource)
 	case 0:
-		j.resource = j.environment.defaultResource
-		j.domain = j.environment.defaultDomain
-	default:
-		j.resourceID = strings.Join(parts[2:], "/")
-		j.resource = parts[1]
-		j.domain = parts[0]
+		j.path = append(j.path, j.environment.defaultDomain, j.environment.defaultResource)
 	}
 	// Retrieve the requested version of the API.
 	vsnstr := j.request.Header.Get("Version")
@@ -172,7 +172,7 @@ func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 
 // String is defined on the Stringer interface.
 func (j *job) String() string {
-	path := j.createPath(j.domain, j.resource, j.resourceID)
+	path := j.createPath(j.Domain(), j.Resource(), j.ResourceID())
 	return fmt.Sprintf("%s %s", j.request.Method, path)
 }
 
@@ -193,17 +193,28 @@ func (j *job) ResponseWriter() http.ResponseWriter {
 
 // Domain implements the Job interface.
 func (j *job) Domain() string {
-	return j.domain
+	return j.path[PathDomain]
 }
 
 // Resource implements the Job interface.
 func (j *job) Resource() string {
-	return j.resource
+	return j.path[PathResource]
 }
 
 // ResourceID implements the Job interface.
 func (j *job) ResourceID() string {
-	return j.resourceID
+	if len(j.path) > 2 {
+		return strings.Join(j.path[PathResourceID:], "/")
+	}
+	return ""
+}
+
+// Path implements the Job interface.
+func (j *job) Path(index int) string {
+	if len(j.path) <= index {
+		return ""
+	}
+	return j.path[index]
 }
 
 // Context implements the Job interface.

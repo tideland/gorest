@@ -13,6 +13,7 @@ package rest_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/tideland/golib/audit"
@@ -387,6 +388,16 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
 		th.assert.Logf("GET JSON")
 		job.JSON(true).Write(rest.StatusOK, data)
+	case job.AcceptsContentType(rest.ContentTypePlain):
+		p0 := job.Path(rest.PathDomain)
+		p1 := job.Path(rest.PathResource)
+		p2 := job.Path(2)
+		p3 := job.Path(3)
+		p4 := job.Path(4)
+		p5 := job.Path(5)
+		p6 := job.Path(6)
+		s := fmt.Sprintf("0: %q 1: %q 2: %q 3: %q 4: %q 5: %q 6: %q", p0, p1, p2, p3, p4, p5, p6)
+		job.ResponseWriter().Write([]byte(s))
 	default:
 		th.assert.Logf("GET HTML")
 		job.Renderer().Render("test:context:html", data)
@@ -416,7 +427,6 @@ func (th *TestHandler) Put(job rest.Job) (bool, error) {
 			job.XML().Write(rest.StatusOK, data)
 		}
 	}
-
 	return true, nil
 }
 
