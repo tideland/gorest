@@ -146,6 +146,11 @@ func TestLongPath(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-a-test")
 	resp := ts.DoRequest(req)
 	resp.AssertBodyContains(`Resource ID: 2014/09/30/just-a-test`)
+	// Now with path elements.
+	req = restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-another-test")
+	req.AddHeader(restaudit.HeaderAccept, rest.ContentTypePlain)
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains(`0: "content" 1: "blog" 2: "2014" 3: "09" 4: "30" 5: "just-another-test" 6: ""`)
 }
 
 // TestFallbackDefault tests the fallback to default.
