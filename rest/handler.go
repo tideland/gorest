@@ -122,61 +122,66 @@ func handleJob(handler ResourceHandler, job Job) (bool, error) {
 	switch job.Request().Method {
 	case http.MethodGet:
 		grh, ok := handler.(GetResourceHandler)
-		if !ok {
-			grh, ok = handler.(ReadResourceHandler)
-			if !ok {
-				return false, errors.New(ErrNoGetHandler, errorMessages, id())
-			}
+		if ok {
+			return grh.Get(job)
 		}
-		return grh.Get(job)
+		rrh, ok := handler.(ReadResourceHandler)
+		if ok {
+			return rrh.Read(job)
+		}
+		return false, errors.New(ErrNoGetHandler, errorMessages, id())
 	case http.MethodHead:
 		hrh, ok := handler.(HeadResourceHandler)
-		if !ok {
-			return false, errors.New(ErrNoHeadHandler, errorMessages, id())
+		if ok {
+			return hrh.Head(job)
 		}
-		return hrh.Head(job)
+		return false, errors.New(ErrNoHeadHandler, errorMessages, id())
 	case http.MethodPut:
 		prh, ok := handler.(PutResourceHandler)
-		if !ok {
-			prh, ok = handler.(UpdateResourceHandler)
-			if !ok {
-				return false, errors.New(ErrNoPutHandler, errorMessages, id())
-			}
+		if ok {
+			return prh.Put(job)
 		}
-		return prh.Put(job)
+		urh, ok := handler.(UpdateResourceHandler)
+		if ok {
+			return urh.Update(job)
+		}
+		return false, errors.New(ErrNoPutHandler, errorMessages, id())
 	case http.MethodPost:
 		prh, ok := handler.(PostResourceHandler)
-		if !ok {
-			prh, ok = handler.(CreateResourceHandler)
-			if !ok {
-				return false, errors.New(ErrNoPostHandler, errorMessages, id())
-			}
+		if ok {
+			return prh.Post(job)
 		}
-		return prh.Post(job)
+		crh, ok := handler.(CreateResourceHandler)
+		if ok {
+			return crh.Create(job)
+		}
+		return false, errors.New(ErrNoPostHandler, errorMessages, id())
 	case http.MethodPatch:
 		prh, ok := handler.(PatchResourceHandler)
-		if !ok {
-			prh, ok = handler.(ModifyResourceHandler)
-			if !ok {
-				return false, errors.New(ErrNoPatchHandler, errorMessages, id())
-			}
+		if ok {
+			return prh.Patch(job)
 		}
-		return prh.Patch(job)
+		mrh, ok := handler.(ModifyResourceHandler)
+		if ok {
+			return mrh.Modify(job)
+		}
+		return false, errors.New(ErrNoPatchHandler, errorMessages, id())
 	case http.MethodDelete:
 		drh, ok := handler.(DeleteResourceHandler)
-		if !ok {
-			return false, errors.New(ErrNoDeleteHandler, errorMessages, id())
+		if ok {
+			return drh.Delete(job)
 		}
-		return drh.Delete(job)
+		return false, errors.New(ErrNoDeleteHandler, errorMessages, id())
 	case http.MethodOptions:
 		orh, ok := handler.(OptionsResourceHandler)
-		if !ok {
-			orh, ok = handler.(InfoResourceHandler)
-			if !ok {
-				return false, errors.New(ErrNoOptionsHandler, errorMessages, id())
-			}
+		if ok {
+			return orh.Options(job)
 		}
-		return orh.Options(job)
+		irh, ok := handler.(InfoResourceHandler)
+		if ok {
+			return irh.Info(job)
+		}
+		return false, errors.New(ErrNoOptionsHandler, errorMessages, id())
 	}
 	return false, errors.New(ErrMethodNotSupported, errorMessages, job.Request().Method)
 }
