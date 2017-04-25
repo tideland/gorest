@@ -277,9 +277,40 @@ func TestMethodNotSupported(t *testing.T) {
 	err := mux.Register("test", "method", NewTestHandler("method", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("OPTION", "/base/test/method")
+	req := restaudit.NewRequest("OPTIONS", "/base/test/method")
 	resp := ts.DoRequest(req)
-	resp.AssertBodyContains("OPTION")
+	resp.AssertBodyContains("OPTIONS")
+}
+
+// TestRESTHandler tests the mapping of requests to the REST methods
+// of a handler.
+func TestRESTHandler(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	// Setup the test server.
+	mux := newMultiplexer(assert)
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err := mux.Register("test", "rest", NewRESTHandler("rest", assert))
+	assert.Nil(err)
+	// Perform test requests.
+	req := restaudit.NewRequest("POST", "/base/test/rest")
+	resp := ts.DoRequest(req)
+	resp.AssertBodyContains("CREATE test/rest")
+	req = restaudit.NewRequest("GET", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("READ test/rest/12345")
+	req = restaudit.NewRequest("PUT", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("UPDATE test/rest/12345")
+	req = restaudit.NewRequest("PATCH", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("MODIFY test/rest/12345")
+	req = restaudit.NewRequest("DELETE", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("DELETE test/rest/12345")
+	req = restaudit.NewRequest("OPTIONS", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("INFO test/rest/12345")
 }
 
 //--------------------
@@ -352,25 +383,25 @@ const testTemplateHTML = `
 </html>
 `
 
-type TestHandler struct {
+type testHandler struct {
 	id     string
 	assert audit.Assertion
 }
 
 func NewTestHandler(id string, assert audit.Assertion) rest.ResourceHandler {
-	return &TestHandler{id, assert}
+	return &testHandler{id, assert}
 }
 
-func (th *TestHandler) ID() string {
+func (th *testHandler) ID() string {
 	return th.id
 }
 
-func (th *TestHandler) Init(env rest.Environment, domain, resource string) error {
+func (th *testHandler) Init(env rest.Environment, domain, resource string) error {
 	env.TemplatesCache().Parse("test:context:html", testTemplateHTML, "text/html")
 	return nil
 }
 
-func (th *TestHandler) Get(job rest.Job) (bool, error) {
+func (th *testHandler) Get(job rest.Job) (bool, error) {
 	if th.id == "auth:token" {
 		job.ResponseWriter().Header().Add("Token", "foo")
 	}
@@ -410,11 +441,11 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) Head(job rest.Job) (bool, error) {
+func (th *testHandler) Head(job rest.Job) (bool, error) {
 	return false, nil
 }
 
-func (th *TestHandler) Put(job rest.Job) (bool, error) {
+func (th *testHandler) Put(job rest.Job) (bool, error) {
 	var data TestRequestData
 	switch {
 	case job.HasContentType(rest.ContentTypeJSON):
@@ -435,7 +466,7 @@ func (th *TestHandler) Put(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) Post(job rest.Job) (bool, error) {
+func (th *testHandler) Post(job rest.Job) (bool, error) {
 	var data TestCounterData
 	err := job.GOB().Read(&data)
 	if err != nil {
@@ -446,8 +477,65 @@ func (th *TestHandler) Post(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) Delete(job rest.Job) (bool, error) {
+func (th *testHandler) Delete(job rest.Job) (bool, error) {
 	return false, nil
+}
+
+//--------------------
+// REST HANDLER
+//--------------------
+
+type restHandler struct {
+	id     string
+	assert audit.Assertion
+}
+
+func NewRESTHandler(id string, assert audit.Assertion) rest.ResourceHandler {
+	return &restHandler{id, assert}
+}
+
+func (rh *restHandler) ID() string {
+	return rh.id
+}
+
+func (rh *restHandler) Init(env rest.Environment, domain, resource string) error {
+	return nil
+}
+
+func (rh *restHandler) Create(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("CREATE %v/%v", job.Domain(), job.Resource())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Read(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("READ %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Update(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("UPDATE %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Modify(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("MODIFY %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Delete(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("DELETE %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Info(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("INFO %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
 }
 
 //--------------------
