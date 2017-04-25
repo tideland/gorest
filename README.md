@@ -12,12 +12,13 @@ The library earlier has been known as `web` package of the
 
 I hope you like it. ;)
 
+[![GoDoc](https://godoc.org/github.com/tideland/gorest?status.svg)](https://godoc.org/github.com/tideland/gorestt)
 [![Sourcegraph](https://sourcegraph.com/github.com/tideland/gorest/-/badge.svg)](https://sourcegraph.com/github.com/tideland/gorest?badge)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tideland/gorest)](https://goreportcard.com/report/github.com/tideland/gorest)
 
 ## Version
 
-Version 2.13.1
+Version 2.14.0
 
 ## Packages
 
@@ -25,31 +26,21 @@ Version 2.13.1
 
 RESTful web request handling.
 
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/rest?status.svg)](https://godoc.org/github.com/tideland/gorest/rest)
-
 ### Request
 
 Convenient client requests to RESTful web services.
-
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/request?status.svg)](https://godoc.org/github.com/tideland/gorest/request)
 
 ### Handlers
 
 Some general purpose handlers for the library.
 
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/handlers?status.svg)](https://godoc.org/github.com/tideland/gorest/handlers)
-
 ### JSON Web Token
 
 JWT package for secure authentication and information exchange like claims.
 
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/jwt?status.svg)](https://godoc.org/github.com/tideland/gorest/jwt)
-
 ### REST Audit
 
 Helpers for the unit tests of the Go REST Server Library.
-
-[![GoDoc](https://godoc.org/github.com/tideland/gorest/restaudit?status.svg)](https://godoc.org/github.com/tideland/gorest/restaudit)
 
 ## Contributors
 
