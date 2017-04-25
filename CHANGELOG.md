@@ -1,10 +1,17 @@
 # Tideland Go REST Server Library
 
+## 2017-04-25
+
+- Added access to URL path parts via *Job.Path()*
+- Added interfaces for handler methods directly mapping
+  HTTP verbs to the according REST methods like *Create()*,
+  *Read()*, *Update()*, *Modify()*, *Delete()*, and *Info()*
+
 ## 2017-03-20
 
 - Rename internal *envelope* to public *Feedback* in *rest*
 - Added *ReadFeedback()* to *Response* in *request*
-- Asserts in *restaudit* now internally increase the callstack 
+- Asserts in *restaudit* now internally increase the callstack
   offset so that the correct test line number is shown
 - Added *Response.AssertBodyGrep()* to *restaudit*
 
