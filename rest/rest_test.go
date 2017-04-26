@@ -13,6 +13,7 @@ package rest_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/tideland/golib/audit"
@@ -145,6 +146,11 @@ func TestLongPath(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-a-test")
 	resp := ts.DoRequest(req)
 	resp.AssertBodyContains(`Resource ID: 2014/09/30/just-a-test`)
+	// Now with path elements.
+	req = restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-another-test")
+	req.AddHeader(restaudit.HeaderAccept, rest.ContentTypePlain)
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains(`0: "content" 1: "blog" 2: "2014" 3: "09" 4: "30" 5: "just-another-test" 6: ""`)
 }
 
 // TestFallbackDefault tests the fallback to default.
@@ -271,9 +277,46 @@ func TestMethodNotSupported(t *testing.T) {
 	err := mux.Register("test", "method", NewTestHandler("method", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("OPTION", "/base/test/method")
+	req := restaudit.NewRequest("OPTIONS", "/base/test/method")
 	resp := ts.DoRequest(req)
-	resp.AssertBodyContains("OPTION")
+	resp.AssertBodyContains("OPTIONS")
+}
+
+// TestRESTHandler tests the mapping of requests to the REST methods
+// of a handler.
+func TestRESTHandler(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	// Setup the test server.
+	mux := newMultiplexer(assert)
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err := mux.Register("test", "rest", NewRESTHandler("rest", assert))
+	assert.Nil(err)
+	err = mux.Register("test", "double", NewDoubleHandler("double", assert))
+	assert.Nil(err)
+	// Perform test requests on rest handler.
+	req := restaudit.NewRequest("POST", "/base/test/rest")
+	resp := ts.DoRequest(req)
+	resp.AssertBodyContains("CREATE test/rest")
+	req = restaudit.NewRequest("GET", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("READ test/rest/12345")
+	req = restaudit.NewRequest("PUT", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("UPDATE test/rest/12345")
+	req = restaudit.NewRequest("PATCH", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("MODIFY test/rest/12345")
+	req = restaudit.NewRequest("DELETE", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("DELETE test/rest/12345")
+	req = restaudit.NewRequest("OPTIONS", "/base/test/rest/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("INFO test/rest/12345")
+	// Perform test requests on double handler.
+	req = restaudit.NewRequest("GET", "/base/test/double/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("GET test/double/12345")
 }
 
 //--------------------
@@ -346,25 +389,25 @@ const testTemplateHTML = `
 </html>
 `
 
-type TestHandler struct {
+type testHandler struct {
 	id     string
 	assert audit.Assertion
 }
 
 func NewTestHandler(id string, assert audit.Assertion) rest.ResourceHandler {
-	return &TestHandler{id, assert}
+	return &testHandler{id, assert}
 }
 
-func (th *TestHandler) ID() string {
+func (th *testHandler) ID() string {
 	return th.id
 }
 
-func (th *TestHandler) Init(env rest.Environment, domain, resource string) error {
+func (th *testHandler) Init(env rest.Environment, domain, resource string) error {
 	env.TemplatesCache().Parse("test:context:html", testTemplateHTML, "text/html")
 	return nil
 }
 
-func (th *TestHandler) Get(job rest.Job) (bool, error) {
+func (th *testHandler) Get(job rest.Job) (bool, error) {
 	if th.id == "auth:token" {
 		job.ResponseWriter().Header().Add("Token", "foo")
 	}
@@ -387,6 +430,16 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	case job.AcceptsContentType(rest.ContentTypeJSON):
 		th.assert.Logf("GET JSON")
 		job.JSON(true).Write(rest.StatusOK, data)
+	case job.AcceptsContentType(rest.ContentTypePlain):
+		p0 := job.Path(rest.PathDomain)
+		p1 := job.Path(rest.PathResource)
+		p2 := job.Path(2)
+		p3 := job.Path(3)
+		p4 := job.Path(4)
+		p5 := job.Path(5)
+		p6 := job.Path(6)
+		s := fmt.Sprintf("0: %q 1: %q 2: %q 3: %q 4: %q 5: %q 6: %q", p0, p1, p2, p3, p4, p5, p6)
+		job.ResponseWriter().Write([]byte(s))
 	default:
 		th.assert.Logf("GET HTML")
 		job.Renderer().Render("test:context:html", data)
@@ -394,11 +447,11 @@ func (th *TestHandler) Get(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) Head(job rest.Job) (bool, error) {
+func (th *testHandler) Head(job rest.Job) (bool, error) {
 	return false, nil
 }
 
-func (th *TestHandler) Put(job rest.Job) (bool, error) {
+func (th *testHandler) Put(job rest.Job) (bool, error) {
 	var data TestRequestData
 	switch {
 	case job.HasContentType(rest.ContentTypeJSON):
@@ -416,11 +469,10 @@ func (th *TestHandler) Put(job rest.Job) (bool, error) {
 			job.XML().Write(rest.StatusOK, data)
 		}
 	}
-
 	return true, nil
 }
 
-func (th *TestHandler) Post(job rest.Job) (bool, error) {
+func (th *testHandler) Post(job rest.Job) (bool, error) {
 	var data TestCounterData
 	err := job.GOB().Read(&data)
 	if err != nil {
@@ -431,8 +483,99 @@ func (th *TestHandler) Post(job rest.Job) (bool, error) {
 	return true, nil
 }
 
-func (th *TestHandler) Delete(job rest.Job) (bool, error) {
+func (th *testHandler) Delete(job rest.Job) (bool, error) {
 	return false, nil
+}
+
+//--------------------
+// REST HANDLER
+//--------------------
+
+type restHandler struct {
+	id     string
+	assert audit.Assertion
+}
+
+func NewRESTHandler(id string, assert audit.Assertion) rest.ResourceHandler {
+	return &restHandler{id, assert}
+}
+
+func (rh *restHandler) ID() string {
+	return rh.id
+}
+
+func (rh *restHandler) Init(env rest.Environment, domain, resource string) error {
+	return nil
+}
+
+func (rh *restHandler) Create(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("CREATE %v/%v", job.Domain(), job.Resource())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Read(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("READ %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Update(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("UPDATE %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Modify(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("MODIFY %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Delete(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("DELETE %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (rh *restHandler) Info(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("INFO %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+//--------------------
+// DOUBLE HANDLER
+//--------------------
+
+// doubleHandler implements Get and Read. So Get should be chosen.
+type doubleHandler struct {
+	id     string
+	assert audit.Assertion
+}
+
+func NewDoubleHandler(id string, assert audit.Assertion) rest.ResourceHandler {
+	return &doubleHandler{id, assert}
+}
+
+func (dh *doubleHandler) ID() string {
+	return dh.id
+}
+
+func (dh *doubleHandler) Init(env rest.Environment, domain, resource string) error {
+	return nil
+}
+
+func (dh *doubleHandler) Get(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("GET %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (dh *doubleHandler) Read(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("READ %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
 }
 
 //--------------------

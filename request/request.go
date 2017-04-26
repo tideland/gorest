@@ -208,7 +208,12 @@ func (r *response) ReadFeedback() (rest.Feedback, bool) {
 	fb := rest.Feedback{}
 	err := r.Read(&fb)
 	if err != nil {
-		return rest.Feedback{}, false
+		return rest.Feedback{
+			StatusCode: -1,
+			Status:     "fail",
+			Message:    err.Error(),
+			Payload:    r.content,
+		}, false
 	}
 	return fb, true
 }
