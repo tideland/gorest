@@ -292,7 +292,9 @@ func TestRESTHandler(t *testing.T) {
 	defer ts.Close()
 	err := mux.Register("test", "rest", NewRESTHandler("rest", assert))
 	assert.Nil(err)
-	// Perform test requests.
+	err = mux.Register("test", "double", NewDoubleHandler("double", assert))
+	assert.Nil(err)
+	// Perform test requests on rest handler.
 	req := restaudit.NewRequest("POST", "/base/test/rest")
 	resp := ts.DoRequest(req)
 	resp.AssertBodyContains("CREATE test/rest")
@@ -311,6 +313,10 @@ func TestRESTHandler(t *testing.T) {
 	req = restaudit.NewRequest("OPTIONS", "/base/test/rest/12345")
 	resp = ts.DoRequest(req)
 	resp.AssertBodyContains("INFO test/rest/12345")
+	// Perform test requests on double handler.
+	req = restaudit.NewRequest("GET", "/base/test/double/12345")
+	resp = ts.DoRequest(req)
+	resp.AssertBodyContains("GET test/double/12345")
 }
 
 //--------------------
@@ -534,6 +540,40 @@ func (rh *restHandler) Delete(job rest.Job) (bool, error) {
 
 func (rh *restHandler) Info(job rest.Job) (bool, error) {
 	s := fmt.Sprintf("INFO %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+//--------------------
+// DOUBLE HANDLER
+//--------------------
+
+// doubleHandler implements Get and Read. So Get should be chosen.
+type doubleHandler struct {
+	id     string
+	assert audit.Assertion
+}
+
+func NewDoubleHandler(id string, assert audit.Assertion) rest.ResourceHandler {
+	return &doubleHandler{id, assert}
+}
+
+func (dh *doubleHandler) ID() string {
+	return dh.id
+}
+
+func (dh *doubleHandler) Init(env rest.Environment, domain, resource string) error {
+	return nil
+}
+
+func (dh *doubleHandler) Get(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("GET %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
+	job.ResponseWriter().Write([]byte(s))
+	return true, nil
+}
+
+func (dh *doubleHandler) Read(job rest.Job) (bool, error) {
+	s := fmt.Sprintf("READ %v/%v/%v", job.Domain(), job.Resource(), job.ResourceID())
 	job.ResponseWriter().Write([]byte(s))
 	return true, nil
 }
