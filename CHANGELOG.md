@@ -1,6 +1,6 @@
 # Tideland Go REST Server Library
 
-## 2017-04-25
+## 2017-04-26
 
 - Added access to URL path parts via *Job.Path()*
 - Added interfaces for handler methods directly mapping
