@@ -12,6 +12,8 @@ package rest
 //--------------------
 
 import (
+	"net/http"
+
 	"github.com/tideland/golib/stringex"
 )
 
@@ -21,8 +23,8 @@ import (
 
 // Path indexes for the different parts.
 const (
-	PathDomain = 0
-	PathResource = 1
+	PathDomain     = 0
+	PathResource   = 1
 	PathResourceID = 2
 )
 
@@ -32,15 +34,15 @@ const (
 
 // Path provides access to the parts of a
 // request path interesting for handling a
-// job. 
+// job.
 type Path interface {
 	// Length returns the number of parts of the path.
 	Length() int
-	
+
 	// Part returns the parts of the URL path based on the
 	// index or an empty string.
 	Part(index int) string
-	
+
 	// Domain returns the requests domain.
 	Domain() string
 
@@ -53,10 +55,26 @@ type Path interface {
 
 // path implements Path.
 type path struct {
-	path []string
+	parts []string
 }
 
-func newPath(url ) *path {
+// newPath returns the analyzed path.
+func newPath(env *environment, r *http.Request) *path {
+	parts := stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
+		if part == "" {
+			return "", false
+		}
+		return part, true
+	})[env.basepartsLen:]
+	switch len(parts) {
+	case 1:
+		parts = append(parts, env.defaultResource)
+	case 0:
+		parts = append(parts, env.defaultDomain, nev.defaultResource)
+	}
+	return &path{
+		parts: parts,
+	}
 }
 
 // EOF
