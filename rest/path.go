@@ -13,6 +13,7 @@ package rest
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/tideland/golib/stringex"
 )
@@ -75,6 +76,37 @@ func newPath(env *environment, r *http.Request) *path {
 	return &path{
 		parts: parts,
 	}
+}
+
+// Length implements Path.
+func (p *path) Length() int {
+	return len(p.parts)
+}
+
+// Part implements Path.
+func (p *path) Part(index int) string {
+	if len(p.parts) <= index {
+		return ""
+	}
+	return p.parts[index]
+}
+
+// Domain implements Path.
+func (p *path) Domain() string {
+	return p.parts[PathDomain]
+}
+
+// Resource implements Path.
+func (p *path) Resource() string {
+	return p.parts[PathResource]
+}
+
+// ResourceID implements Path.
+func (p *path) ResourceID() string {
+	if len(p.parts) > 2 {
+		return strings.Join(p.parts[PathResourceID:], "/")
+	}
+	return ""
 }
 
 // EOF
