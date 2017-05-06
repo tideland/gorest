@@ -61,7 +61,7 @@ type path struct {
 
 // newPath returns the analyzed path.
 func newPath(env *environment, r *http.Request) *path {
-	parts := stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
+	parts := stringex.SplitMap(r.URL.Path, "/", func(part string) (string, bool) {
 		if part == "" {
 			return "", false
 		}
@@ -71,7 +71,7 @@ func newPath(env *environment, r *http.Request) *path {
 	case 1:
 		parts = append(parts, env.defaultResource)
 	case 0:
-		parts = append(parts, env.defaultDomain, nev.defaultResource)
+		parts = append(parts, env.defaultDomain, env.defaultResource)
 	}
 	return &path{
 		parts: parts,

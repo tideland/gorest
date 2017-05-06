@@ -20,19 +20,7 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/logger"
-	"github.com/tideland/golib/stringex"
 	"github.com/tideland/golib/version"
-)
-
-//--------------------
-// CONSTANTS
-//--------------------
-
-// Path indexes for the different parts.
-const (
-	PathDomain = 0
-	PathResource = 1
-	PathResourceID = 2
 )
 
 //--------------------
@@ -54,18 +42,20 @@ type Job interface {
 	// ResponseWriter returns the used Go HTTP response writer.
 	ResponseWriter() http.ResponseWriter
 
-	// Domain returns the requests domain.
+	// Domain returns the requests domain. It's deprecated,
+	// use Path().
 	Domain() string
 
-	// Resource returns the requests resource.
+	// Resource returns the requests resource. It's deprecated,
+	// use Path().
 	Resource() string
 
-	// ResourceID return the requests resource ID.
+	// ResourceID return the requests resource ID. It's deprecated,
+	// use Path().
 	ResourceID() string
 
-	// Path returns the parts of the URL path based on the
-	// index or an empty string.
-	Path(index int) string
+	// Path returns access to the request path inside the URL.
+	Path() Path
 
 	// Context returns a job context also containing the
 	// job itself.
@@ -130,7 +120,7 @@ type job struct {
 	request        *http.Request
 	responseWriter http.ResponseWriter
 	version        version.Version
-	path           []string
+	path           Path
 }
 
 // newJob parses the URL and returns the prepared job.
@@ -140,19 +130,7 @@ func newJob(env *environment, r *http.Request, rw http.ResponseWriter) Job {
 		environment:    env,
 		request:        r,
 		responseWriter: rw,
-		path: stringex.SplitMap(r.URL.Path, "/", func(p string) (string, bool) {
-			if p == "" {
-				return "", false
-			}
-			return p, true
-		})[env.basepartsLen:],
-	}
-	// Check path for defaults.
-	switch len(j.path) {
-	case 1:
-		j.path = append(j.path, j.environment.defaultResource)
-	case 0:
-		j.path = append(j.path, j.environment.defaultDomain, j.environment.defaultResource)
+		path:           newPath(env, r),
 	}
 	// Retrieve the requested version of the API.
 	vsnstr := j.request.Header.Get("Version")
@@ -193,28 +171,22 @@ func (j *job) ResponseWriter() http.ResponseWriter {
 
 // Domain implements the Job interface.
 func (j *job) Domain() string {
-	return j.path[PathDomain]
+	return j.path.Domain()
 }
 
 // Resource implements the Job interface.
 func (j *job) Resource() string {
-	return j.path[PathResource]
+	return j.path.Resource()
 }
 
 // ResourceID implements the Job interface.
 func (j *job) ResourceID() string {
-	if len(j.path) > 2 {
-		return strings.Join(j.path[PathResourceID:], "/")
-	}
-	return ""
+	return j.path.ResourceID()
 }
 
 // Path implements the Job interface.
-func (j *job) Path(index int) string {
-	if len(j.path) <= index {
-		return ""
-	}
-	return j.path[index]
+func (j *job) Path() Path {
+	return j.path
 }
 
 // Context implements the Job interface.
