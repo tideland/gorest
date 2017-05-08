@@ -1,5 +1,11 @@
 # Tideland Go REST Server Library
 
+## 2017-05-08
+
+- Changed *Job.Path()* to return a *Path* instance
+- This instance provides access to the different parts
+  of the path
+
 ## 2017-04-26
 
 - Added access to URL path parts via *Job.Path()*
