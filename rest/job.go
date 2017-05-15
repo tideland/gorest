@@ -43,15 +43,15 @@ type Job interface {
 	ResponseWriter() http.ResponseWriter
 
 	// Domain returns the requests domain. It's deprecated,
-	// use Path().
+	// use Job.Path().Domain() instead.
 	Domain() string
 
 	// Resource returns the requests resource. It's deprecated,
-	// use Path().
+	// use Job.Path().Resource() instead.
 	Resource() string
 
 	// ResourceID return the requests resource ID. It's deprecated,
-	// use Path().
+	// use Job.Path().JoinedResourceID() instead.
 	ResourceID() string
 
 	// Path returns access to the request path inside the URL.
@@ -181,7 +181,7 @@ func (j *job) Resource() string {
 
 // ResourceID implements the Job interface.
 func (j *job) ResourceID() string {
-	return j.path.ResourceID()
+	return j.path.JoinedResourceID()
 }
 
 // Path implements the Job interface.

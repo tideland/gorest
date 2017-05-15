@@ -1,10 +1,14 @@
 # Tideland Go REST Server Library
 
-## 2017-05-08
+## 2017-05-15
 
 - Changed *Job.Path()* to return a *Path* instance
 - This instance provides access to the different parts
   of the path
+- Now *JoinedResourceID()* has the role of the former
+  *ResourceID()* (*Job* uses this one in the deprecated
+  *ResourceID()*) while the method *ResourceID()* of path
+  returns only the third part of the path
 
 ## 2017-04-26
 

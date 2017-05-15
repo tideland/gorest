@@ -40,6 +40,12 @@ type Path interface {
 	// Length returns the number of parts of the path.
 	Length() int
 
+	// ContainsSubResourceIDs returns true, if the path doesn't
+	// end after the resource ID, e.g. to address items of an order.
+	//
+	// Example: /shop/orders/12345/item/1
+	ContainsSubResourceIDs() bool
+
 	// Part returns the parts of the URL path based on the
 	// index or an empty string.
 	Part(index int) string
@@ -50,8 +56,12 @@ type Path interface {
 	// Resource returns the requests resource.
 	Resource() string
 
-	// ResourceID return the requests resource ID.
+	// ResourceID returns the requests resource ID.
 	ResourceID() string
+
+	// JoinedResourceID returns the requests resource ID together
+	// with all following parts of the path.
+	JoinedResourceID() string
 }
 
 // path implements Path.
@@ -83,6 +93,11 @@ func (p *path) Length() int {
 	return len(p.parts)
 }
 
+// ContainsSubResourceIDs implements Path.
+func (p *path) ContainsSubResourceIDs() bool {
+	return len(p.parts) > 3
+}
+
 // Part implements Path.
 func (p *path) Part(index int) string {
 	if len(p.parts) <= index {
@@ -103,6 +118,14 @@ func (p *path) Resource() string {
 
 // ResourceID implements Path.
 func (p *path) ResourceID() string {
+	if len(p.parts) > 2 {
+		return p.parts[PathResourceID]
+	}
+	return ""
+}
+
+// JoinedResourceID implements Path.
+func (p *path) JoinedResourceID() string {
 	if len(p.parts) > 2 {
 		return strings.Join(p.parts[PathResourceID:], "/")
 	}
