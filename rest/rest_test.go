@@ -150,7 +150,7 @@ func TestLongPath(t *testing.T) {
 	req = restaudit.NewRequest("GET", "/base/content/blog/2014/09/30/just-another-test")
 	req.AddHeader(restaudit.HeaderAccept, rest.ContentTypePlain)
 	resp = ts.DoRequest(req)
-	resp.AssertBodyContains(`0: "content" 1: "blog" 2: "2014" 3: "09" 4: "30" 5: "just-another-test" 6: ""`)
+	resp.AssertBodyContains(`0: "content" 1: "blog" 2: "2014" 3: "09" 4: "30" 5: "just-another-test" 6: "" J: "2014/09/30/just-another-test"`)
 }
 
 // TestFallbackDefault tests the fallback to default.
@@ -431,14 +431,16 @@ func (th *testHandler) Get(job rest.Job) (bool, error) {
 		th.assert.Logf("GET JSON")
 		job.JSON(true).Write(rest.StatusOK, data)
 	case job.AcceptsContentType(rest.ContentTypePlain):
+		th.assert.True(job.Path().ContainsSubResourceIDs())
 		p0 := job.Path().Domain()
 		p1 := job.Path().Resource()
-		p2 := job.Path().Part(2)
+		p2 := job.Path().ResourceID()
 		p3 := job.Path().Part(3)
 		p4 := job.Path().Part(4)
 		p5 := job.Path().Part(5)
 		p6 := job.Path().Part(6)
-		s := fmt.Sprintf("0: %q 1: %q 2: %q 3: %q 4: %q 5: %q 6: %q", p0, p1, p2, p3, p4, p5, p6)
+		j := job.Path().JoinedResourceID()
+		s := fmt.Sprintf("0: %q 1: %q 2: %q 3: %q 4: %q 5: %q 6: %q J: %q", p0, p1, p2, p3, p4, p5, p6, j)
 		job.ResponseWriter().Write([]byte(s))
 	default:
 		th.assert.Logf("GET HTML")
