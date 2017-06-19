@@ -116,74 +116,111 @@ type InfoResourceHandler interface {
 // passed handler. It always tries the nativ method first, then
 // the alias method according to the REST conventions.
 func handleJob(handler ResourceHandler, job Job) (bool, error) {
-	id := func() string {
-		return fmt.Sprintf("%s@%s/%s", handler.ID(), job.Domain(), job.Resource())
-	}
 	switch job.Request().Method {
 	case http.MethodGet:
-		grh, ok := handler.(GetResourceHandler)
-		if ok {
-			return grh.Get(job)
-		}
-		rrh, ok := handler.(ReadResourceHandler)
-		if ok {
-			return rrh.Read(job)
-		}
-		return false, errors.New(ErrNoGetHandler, errorMessages, id())
+		return handleGetJob(handler, job)
 	case http.MethodHead:
-		hrh, ok := handler.(HeadResourceHandler)
-		if ok {
-			return hrh.Head(job)
-		}
-		return false, errors.New(ErrNoHeadHandler, errorMessages, id())
+		return handleHeadJob(handler, job)
 	case http.MethodPut:
-		prh, ok := handler.(PutResourceHandler)
-		if ok {
-			return prh.Put(job)
-		}
-		urh, ok := handler.(UpdateResourceHandler)
-		if ok {
-			return urh.Update(job)
-		}
-		return false, errors.New(ErrNoPutHandler, errorMessages, id())
+		return handlePutJob(handler, job)
 	case http.MethodPost:
-		prh, ok := handler.(PostResourceHandler)
-		if ok {
-			return prh.Post(job)
-		}
-		crh, ok := handler.(CreateResourceHandler)
-		if ok {
-			return crh.Create(job)
-		}
-		return false, errors.New(ErrNoPostHandler, errorMessages, id())
+		return handlePostJob(handler, job)
 	case http.MethodPatch:
-		prh, ok := handler.(PatchResourceHandler)
-		if ok {
-			return prh.Patch(job)
-		}
-		mrh, ok := handler.(ModifyResourceHandler)
-		if ok {
-			return mrh.Modify(job)
-		}
-		return false, errors.New(ErrNoPatchHandler, errorMessages, id())
+		return handlePatchJob(handler, job)
 	case http.MethodDelete:
-		drh, ok := handler.(DeleteResourceHandler)
-		if ok {
-			return drh.Delete(job)
-		}
-		return false, errors.New(ErrNoDeleteHandler, errorMessages, id())
+		return handleDeleteJob(handler, job)
 	case http.MethodOptions:
-		orh, ok := handler.(OptionsResourceHandler)
-		if ok {
-			return orh.Options(job)
-		}
-		irh, ok := handler.(InfoResourceHandler)
-		if ok {
-			return irh.Info(job)
-		}
-		return false, errors.New(ErrNoOptionsHandler, errorMessages, id())
+		return handleOptionsJob(handler, job)
 	}
 	return false, errors.New(ErrMethodNotSupported, errorMessages, job.Request().Method)
+}
+
+// handleGetJob handles a job containing a GET request.
+func handleGetJob(handler ResourceHandler, job Job) (bool, error) {
+	grh, ok := handler.(GetResourceHandler)
+	if ok {
+		return grh.Get(job)
+	}
+	rrh, ok := handler.(ReadResourceHandler)
+	if ok {
+		return rrh.Read(job)
+	}
+	return false, errors.New(ErrNoGetHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handleHeadJob handles a job containing a HEAD request.
+func handleHeadJob(handler ResourceHandler, job Job) (bool, error) {
+	hrh, ok := handler.(HeadResourceHandler)
+	if ok {
+		return hrh.Head(job)
+	}
+	return false, errors.New(ErrNoHeadHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handlePutJob handles a job containing a PUT request.
+func handlePutJob(handler ResourceHandler, job Job) (bool, error) {
+	prh, ok := handler.(PutResourceHandler)
+	if ok {
+		return prh.Put(job)
+	}
+	urh, ok := handler.(UpdateResourceHandler)
+	if ok {
+		return urh.Update(job)
+	}
+	return false, errors.New(ErrNoPutHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handlePostJob handles a job containing a POST request.
+func handlePostJob(handler ResourceHandler, job Job) (bool, error) {
+	prh, ok := handler.(PostResourceHandler)
+	if ok {
+		return prh.Post(job)
+	}
+	crh, ok := handler.(CreateResourceHandler)
+	if ok {
+		return crh.Create(job)
+	}
+	return false, errors.New(ErrNoPostHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handlePatchJob handles a job containing a PATCH request.
+func handlePatchJob(handler ResourceHandler, job Job) (bool, error) {
+	prh, ok := handler.(PatchResourceHandler)
+	if ok {
+		return prh.Patch(job)
+	}
+	mrh, ok := handler.(ModifyResourceHandler)
+	if ok {
+		return mrh.Modify(job)
+	}
+	return false, errors.New(ErrNoPatchHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handleDeleteJob handles a job containing a DELETE request.
+func handleDeleteJob(handler ResourceHandler, job Job) (bool, error) {
+	drh, ok := handler.(DeleteResourceHandler)
+	if ok {
+		return drh.Delete(job)
+	}
+	return false, errors.New(ErrNoDeleteHandler, errorMessages, jobDescription(handler, job))
+}
+
+// handleOptionsJob handles a job containing an OPTIONS request.
+func handleOptionsJob(handler ResourceHandler, job Job) (bool, error) {
+	orh, ok := handler.(OptionsResourceHandler)
+	if ok {
+		return orh.Options(job)
+	}
+	irh, ok := handler.(InfoResourceHandler)
+	if ok {
+		return irh.Info(job)
+	}
+	return false, errors.New(ErrNoOptionsHandler, errorMessages, jobDescription(handler, job))
+}
+
+// jobDescription returns a description for possible errors.
+func jobDescription(handler ResourceHandler, job Job) string {
+	return fmt.Sprintf("%s@%s/%s", handler.ID(), job.Domain(), job.Resource())
 }
 
 // EOF

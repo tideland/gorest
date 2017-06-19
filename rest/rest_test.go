@@ -274,12 +274,12 @@ func TestMethodNotSupported(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err := mux.Register("test", "method", NewTestHandler("method", assert))
+	err := mux.Register("test", "no-options", NewTestHandler("no-options", assert))
 	assert.Nil(err)
 	// Perform test requests.
-	req := restaudit.NewRequest("OPTIONS", "/base/test/method")
+	req := restaudit.NewRequest("OPTIONS", "/base/test/no-options")
 	resp := ts.DoRequest(req)
-	resp.AssertBodyContains("OPTIONS")
+	resp.AssertBodyContains("no-options")
 }
 
 // TestRESTHandler tests the mapping of requests to the REST methods
