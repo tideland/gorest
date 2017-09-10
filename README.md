@@ -20,7 +20,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.15.1
+Version 2.15.2
 
 ## Packages
 

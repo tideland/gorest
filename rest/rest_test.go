@@ -14,6 +14,7 @@ package rest_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/tideland/golib/audit"
@@ -279,6 +280,7 @@ func TestMethodNotSupported(t *testing.T) {
 	// Perform test requests.
 	req := restaudit.NewRequest("OPTIONS", "/base/test/no-options")
 	resp := ts.DoRequest(req)
+	resp.AssertStatusEquals(http.StatusMethodNotAllowed)
 	resp.AssertBodyContains("no-options")
 }
 
