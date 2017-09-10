@@ -1,5 +1,14 @@
 # Tideland Go REST Server Library
 
+## 2017-09-10
+
+- Fixed return code in case of not implemented HTTP methods
+  to *405* (method not allowed)
+
+## 2017-06-19
+
+- Reduced job handling complexity
+
 ## 2017-05-15
 
 - Changed *Job.Path()* to return a *Path* instance
