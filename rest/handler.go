@@ -145,7 +145,7 @@ func handleGetJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return rrh.Read(job)
 	}
-	return false, errors.New(ErrNoGetHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handleHeadJob handles a job containing a HEAD request.
@@ -154,7 +154,7 @@ func handleHeadJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return hrh.Head(job)
 	}
-	return false, errors.New(ErrNoHeadHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handlePutJob handles a job containing a PUT request.
@@ -167,7 +167,7 @@ func handlePutJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return urh.Update(job)
 	}
-	return false, errors.New(ErrNoPutHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handlePostJob handles a job containing a POST request.
@@ -180,7 +180,7 @@ func handlePostJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return crh.Create(job)
 	}
-	return false, errors.New(ErrNoPostHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handlePatchJob handles a job containing a PATCH request.
@@ -193,7 +193,7 @@ func handlePatchJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return mrh.Modify(job)
 	}
-	return false, errors.New(ErrNoPatchHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handleDeleteJob handles a job containing a DELETE request.
@@ -202,7 +202,7 @@ func handleDeleteJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return drh.Delete(job)
 	}
-	return false, errors.New(ErrNoDeleteHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // handleOptionsJob handles a job containing an OPTIONS request.
@@ -215,12 +215,12 @@ func handleOptionsJob(handler ResourceHandler, job Job) (bool, error) {
 	if ok {
 		return irh.Info(job)
 	}
-	return false, errors.New(ErrNoOptionsHandler, errorMessages, jobDescription(handler, job))
+	return false, errors.New(ErrMethodNotSupported, errorMessages, jobDescription(handler, job))
 }
 
 // jobDescription returns a description for possible errors.
 func jobDescription(handler ResourceHandler, job Job) string {
-	return fmt.Sprintf("%s@%s/%s", handler.ID(), job.Domain(), job.Resource())
+	return fmt.Sprintf("%s %s@%s/%s", job.Request().Method, handler.ID(), job.Domain(), job.Resource())
 }
 
 // EOF

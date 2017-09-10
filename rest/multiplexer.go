@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/tideland/golib/errors"
 	"github.com/tideland/golib/etc"
 	"github.com/tideland/golib/logger"
 	"github.com/tideland/golib/monitoring"
@@ -132,15 +133,19 @@ func (mux *multiplexer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	measuring := monitoring.BeginMeasuring(job.String())
 	defer measuring.EndMeasuring()
 	if err := mux.mapping.handle(job); err != nil {
-		mux.internalServerError("error handling request", job, err)
+		mux.handleError("error handling request", job, err)
 	}
 }
 
-// internalServerError logs an internal error and returns it to the user.
-func (mux *multiplexer) internalServerError(format string, job Job, err error) {
+// handleError logs an error and returns it to the user.
+func (mux *multiplexer) handleError(format string, job Job, err error) {
+	code := http.StatusInternalServerError
 	msg := fmt.Sprintf(format+" %q: %v", job, err)
 	logger.Errorf(msg)
-	http.Error(job.ResponseWriter(), msg, http.StatusInternalServerError)
+	if errors.IsError(err, ErrMethodNotSupported) {
+		code = http.StatusMethodNotAllowed
+	}
+	http.Error(job.ResponseWriter(), msg, code)
 }
 
 // EOF
