@@ -30,7 +30,7 @@ func AddToRequest(req *http.Request, jwt JWT) *http.Request {
 }
 
 // DecodeFromRequest tries to retrieve a token from a request
-// header. 
+// header.
 func DecodeFromRequest(req *http.Request) (JWT, error) {
 	return nil, nil
 }
@@ -38,27 +38,27 @@ func DecodeFromRequest(req *http.Request) (JWT, error) {
 // DecodeFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is only decoded.
 func DecodeFromJob(job rest.Job) (JWT, error) {
-	return retrieveFromJob(job, nil, nil)
+	return retrieveFromRequest(job.Request(), nil, nil)
 }
 
 // DecodeCachedFromJob retrieves a possible JWT from the request
 // inside a REST job and checks if it already is cached. The JWT is
 // only decoded. In case of no error the token is added to the cache.
 func DecodeCachedFromJob(job rest.Job, cache Cache) (JWT, error) {
-	return retrieveFromJob(job, cache, nil)
+	return retrieveFromRequest(job.Request(), cache, nil)
 }
 
 // VerifyFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is verified.
 func VerifyFromJob(job rest.Job, key Key) (JWT, error) {
-	return retrieveFromJob(job, nil, key)
+	return retrieveFromRequest(job.Request(), nil, key)
 }
 
 // VerifyCachedFromJob retrieves a possible JWT from the request
 // inside a REST job and checks if it already is cached. The JWT is
 // verified. In case of no error the token is added to the cache.
 func VerifyCachedFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
-	return retrieveFromJob(job, cache, key)
+	return retrieveFromRequest(job.Request(), cache, key)
 }
 
 //--------------------
@@ -71,12 +71,12 @@ func retrieveFromRequest(req *http.Request, cache Cache, key Key) (JWT, error) {
 	// Retrieve token from header.
 	authorization := req.Header.Get("Authorization")
 	if authorization == "" {
-		// TODO(mue): Add error. 
+		// TODO(mue): Add error.
 		return nil, nil
 	}
 	fields := strings.Fields(authorization)
 	if len(fields) != 2 || fields[0] != "Bearer" {
-		// TODO(mue): Add error. 
+		// TODO(mue): Add error.
 		return nil, nil
 	}
 	// Check cache.
