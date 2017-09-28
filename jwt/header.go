@@ -19,8 +19,21 @@ import (
 )
 
 //--------------------
-// JOB AND REQUEST HANDLING
+// REQUEST AND JOB HANDLING
 //--------------------
+
+// AddToRequest adds a token as header to a request for
+// usage by a client.
+func AddToRequest(req *http.Request, jwt JWT) *http.Request {
+	req.Header.Add("Authorization", "Bearer "+jwt.String())
+	return req
+}
+
+// DecodeFromRequest tries to retrieve a token from a request
+// header. 
+func DecodeFromRequest(req *http.Request) (JWT, error) {
+	return nil, nil
+}
 
 // DecodeFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is only decoded.
@@ -48,27 +61,22 @@ func VerifyCachedFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
 	return retrieveFromJob(job, cache, key)
 }
 
-// AddTokenToRequest adds a token as header to a request for
-// usage by a client.
-func AddTokenToRequest(req *http.Request, jwt JWT) *http.Request {
-	req.Header.Add("Authorization", "Bearer "+jwt.String())
-	return req
-}
-
 //--------------------
 // PRIVATE HELPERS
 //--------------------
 
-// retrieveFromJob is the generic retrieval function with possible
-// caching and verifaction.
-func retrieveFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
+// retrieveFromRequest is the generic retrieval function with possible
+// caching and verification.
+func retrieveFromRequest(req *http.Request, cache Cache, key Key) (JWT, error) {
 	// Retrieve token from header.
-	authorization := job.Request().Header.Get("Authorization")
+	authorization := req.Header.Get("Authorization")
 	if authorization == "" {
+		// TODO(mue): Add error. 
 		return nil, nil
 	}
 	fields := strings.Fields(authorization)
 	if len(fields) != 2 || fields[0] != "Bearer" {
+		// TODO(mue): Add error. 
 		return nil, nil
 	}
 	// Check cache.
