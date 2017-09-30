@@ -29,6 +29,23 @@ import (
 // TESTS
 //--------------------
 
+// TestDecodeInvalidRequest tests the decoding of requests
+// without a header or an invalid one.
+func TestDecodeInvalidRequest(t *testing.T) {
+	assert := audit.NewTestingAssertion(t, true)
+	assert.Logf("testing decode invalid requests")
+	// Setup the test server.
+	mux := newMultiplexer(assert)
+	ts := restaudit.StartServer(mux, assert)
+	defer ts.Close()
+	err := mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
+	assert.Nil(err)
+	// Perform request without authorization.
+	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
+	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
+	ts.DoRequest(req)
+}
+
 // TestDecodeRequest tests the decoding of a token
 // in a handler.
 func TestDecodeRequest(t *testing.T) {
@@ -48,7 +65,7 @@ func TestDecodeRequest(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.SetRequestProcessor(func(req *http.Request) *http.Request {
-		return jwt.AddTokenToRequest(req, jwtIn)
+		return jwt.AddToRequest(req, jwtIn)
 	})
 	resp := ts.DoRequest(req)
 	claimsOut := jwt.Claims{}
@@ -75,7 +92,7 @@ func TestDecodeCachedRequest(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.SetRequestProcessor(func(req *http.Request) *http.Request {
-		return jwt.AddTokenToRequest(req, jwtIn)
+		return jwt.AddToRequest(req, jwtIn)
 	})
 	resp := ts.DoRequest(req)
 	claimsOut := jwt.Claims{}
@@ -107,7 +124,7 @@ func TestVerifyRequest(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.SetRequestProcessor(func(req *http.Request) *http.Request {
-		return jwt.AddTokenToRequest(req, jwtIn)
+		return jwt.AddToRequest(req, jwtIn)
 	})
 	resp := ts.DoRequest(req)
 	claimsOut := jwt.Claims{}
@@ -134,7 +151,7 @@ func TestVerifyCachedRequest(t *testing.T) {
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
 	req.SetRequestProcessor(func(req *http.Request) *http.Request {
-		return jwt.AddTokenToRequest(req, jwtIn)
+		return jwt.AddToRequest(req, jwtIn)
 	})
 	resp := ts.DoRequest(req)
 	claimsOut := jwt.Claims{}

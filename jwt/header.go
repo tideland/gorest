@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/tideland/golib/errors"
 	"github.com/tideland/gorest/rest"
 )
 
@@ -32,52 +33,50 @@ func AddToRequest(req *http.Request, jwt JWT) *http.Request {
 // DecodeFromRequest tries to retrieve a token from a request
 // header.
 func DecodeFromRequest(req *http.Request) (JWT, error) {
-	return nil, nil
+	return decodeFromRequest(req, nil, nil)
 }
 
 // DecodeFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is only decoded.
 func DecodeFromJob(job rest.Job) (JWT, error) {
-	return retrieveFromRequest(job.Request(), nil, nil)
+	return decodeFromRequest(job.Request(), nil, nil)
 }
 
 // DecodeCachedFromJob retrieves a possible JWT from the request
 // inside a REST job and checks if it already is cached. The JWT is
 // only decoded. In case of no error the token is added to the cache.
 func DecodeCachedFromJob(job rest.Job, cache Cache) (JWT, error) {
-	return retrieveFromRequest(job.Request(), cache, nil)
+	return decodeFromRequest(job.Request(), cache, nil)
 }
 
 // VerifyFromJob retrieves a possible JWT from
 // the request inside a REST job. The JWT is verified.
 func VerifyFromJob(job rest.Job, key Key) (JWT, error) {
-	return retrieveFromRequest(job.Request(), nil, key)
+	return decodeFromRequest(job.Request(), nil, key)
 }
 
 // VerifyCachedFromJob retrieves a possible JWT from the request
 // inside a REST job and checks if it already is cached. The JWT is
 // verified. In case of no error the token is added to the cache.
 func VerifyCachedFromJob(job rest.Job, cache Cache, key Key) (JWT, error) {
-	return retrieveFromRequest(job.Request(), cache, key)
+	return decodeFromRequest(job.Request(), cache, key)
 }
 
 //--------------------
 // PRIVATE HELPERS
 //--------------------
 
-// retrieveFromRequest is the generic retrieval function with possible
+// decodeFromRequest is the generic decoder with possible
 // caching and verification.
-func retrieveFromRequest(req *http.Request, cache Cache, key Key) (JWT, error) {
+func decodeFromRequest(req *http.Request, cache Cache, key Key) (JWT, error) {
 	// Retrieve token from header.
 	authorization := req.Header.Get("Authorization")
 	if authorization == "" {
-		// TODO(mue): Add error.
-		return nil, nil
+		return nil, errors.New(ErrNoAuthorizationHeader, errorMessages)
 	}
 	fields := strings.Fields(authorization)
 	if len(fields) != 2 || fields[0] != "Bearer" {
-		// TODO(mue): Add error.
-		return nil, nil
+		return nil, errors.New(ErrInvalidAuthorizationHeader, errorMessages, authorization)
 	}
 	// Check cache.
 	if cache != nil {
