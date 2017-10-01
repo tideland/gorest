@@ -38,7 +38,8 @@ func TestDecodeInvalidRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err := mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
+	asserter := newDecodeAsserter(assert, false)
+	err := mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform request without authorization.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
@@ -59,7 +60,8 @@ func TestDecodeRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, false))
+	asserter := newDecodeAsserter(assert, false)
+	err = mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform test request.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
@@ -86,7 +88,8 @@ func TestDecodeCachedRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, nil, true))
+	asserter := newDecodeAsserter(assert, true)
+	err = mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform first test request.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
@@ -118,7 +121,8 @@ func TestVerifyRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, false))
+	asserter := newVerifyAsserter(assert, key, false)
+	err = mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform test request.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
@@ -145,7 +149,8 @@ func TestVerifyCachedRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	err = mux.Register("test", "jwt", NewTestHandler("jwt", assert, key, true))
+	asserter := newVerifyAsserter(assert, key, true)
+	err = mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform first test request.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
@@ -167,20 +172,66 @@ func TestVerifyCachedRequest(t *testing.T) {
 // HANDLER
 //--------------------
 
-// testHandler is used in the test scenarios.
-type testHandler struct {
-	id     string
-	assert audit.Assertion
-	key    jwt.Key
-	cache  jwt.Cache
-}
+// testAsserter instances will handle the assertions in the testHandler.
+type testAsserter func(job rest.Job) (bool, error)
 
-func NewTestHandler(id string, assert audit.Assertion, key jwt.Key, useCache bool) rest.ResourceHandler {
+func newDecodeAsserter(assert audit.Assertion, cached bool) testAsserter {
 	var cache jwt.Cache
-	if useCache {
+	if cached {
 		cache = jwt.NewCache(time.Minute, time.Minute, time.Minute, 10)
 	}
-	return &testHandler{id, assert, key, cache}
+	return func(job rest.Job) (bool, error) {
+		var token jwt.JWT
+		var err error
+		if cached {
+			token, err = jwt.DecodeCachedFromJob(job, cache)
+		} else {
+			token, err = jwt.DecodeFromJob(job)
+		}
+		assert.Nil(err)
+		assert.True(token.IsValid(time.Minute))
+		subject, ok := token.Claims().Subject()
+		assert.True(ok)
+		assert.Equal(subject, job.ResourceID())
+		job.JSON(true).Write(rest.StatusOK, token.Claims())
+		return true, nil
+	}
+}
+
+func newVerifyAsserter(assert audit.Assertion, key jwt.Key, cached bool) testAsserter {
+	var cache jwt.Cache
+	if cached {
+		cache = jwt.NewCache(time.Minute, time.Minute, time.Minute, 10)
+	}
+	return func(job rest.Job) (bool, error) {
+		var token jwt.JWT
+		var err error
+		if cached {
+			token, err = jwt.VerifyCachedFromJob(job, cache, key)
+		} else {
+			token, err = jwt.VerifyFromJob(job, key)
+		}
+		assert.Nil(err)
+		assert.True(token.IsValid(time.Minute))
+		subject, ok := token.Claims().Subject()
+		assert.True(ok)
+		assert.Equal(subject, job.ResourceID())
+		job.JSON(true).Write(rest.StatusOK, token.Claims())
+		return true, nil
+	}
+}
+
+// testHandler is used in the test scenarios.
+type testHandler struct {
+	id       string
+	asserter testAsserter
+}
+
+func newTestHandler(id string, asserter testAsserter) rest.ResourceHandler {
+	return &testHandler{
+		id:       id,
+		asserter: asserter,
+	}
 }
 
 func (th *testHandler) ID() string {
@@ -192,45 +243,7 @@ func (th *testHandler) Init(env rest.Environment, domain, resource string) error
 }
 
 func (th *testHandler) Get(job rest.Job) (bool, error) {
-	if th.key == nil {
-		return th.testDecode(job)
-	} else {
-		return th.testVerify(job)
-	}
-}
-
-func (th *testHandler) testDecode(job rest.Job) (bool, error) {
-	decode := func() (jwt.JWT, error) {
-		if th.cache == nil {
-			return jwt.DecodeFromJob(job)
-		}
-		return jwt.DecodeCachedFromJob(job, th.cache)
-	}
-	jwtOut, err := decode()
-	th.assert.Nil(err)
-	th.assert.True(jwtOut.IsValid(time.Minute))
-	subject, ok := jwtOut.Claims().Subject()
-	th.assert.True(ok)
-	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(rest.StatusOK, jwtOut.Claims())
-	return true, nil
-}
-
-func (th *testHandler) testVerify(job rest.Job) (bool, error) {
-	verify := func() (jwt.JWT, error) {
-		if th.cache == nil {
-			return jwt.VerifyFromJob(job, th.key)
-		}
-		return jwt.VerifyCachedFromJob(job, th.cache, th.key)
-	}
-	jwtOut, err := verify()
-	th.assert.Nil(err)
-	th.assert.True(jwtOut.IsValid(time.Minute))
-	subject, ok := jwtOut.Claims().Subject()
-	th.assert.True(ok)
-	th.assert.Equal(subject, job.ResourceID())
-	job.JSON(true).Write(rest.StatusOK, jwtOut.Claims())
-	return true, nil
+	return th.asserter(job)
 }
 
 //--------------------
