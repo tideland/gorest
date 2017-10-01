@@ -38,13 +38,16 @@ func TestDecodeInvalidRequest(t *testing.T) {
 	mux := newMultiplexer(assert)
 	ts := restaudit.StartServer(mux, assert)
 	defer ts.Close()
-	asserter := newDecodeAsserter(assert, false)
+	asserter := newHeaderAsserter(assert, ".* request contains no authorization header")
 	err := mux.Register("test", "jwt", newTestHandler("jwt", asserter))
 	assert.Nil(err)
 	// Perform request without authorization.
 	req := restaudit.NewRequest("GET", "/test/jwt/1234567890")
 	req.AddHeader(restaudit.HeaderAccept, restaudit.ApplicationJSON)
-	ts.DoRequest(req)
+	resp := ts.DoRequest(req)
+	ok := ""
+	resp.AssertUnmarshalledBody(&ok)
+	assert.Equal(ok, "OK")
 }
 
 // TestDecodeRequest tests the decoding of a token
@@ -174,6 +177,16 @@ func TestVerifyCachedRequest(t *testing.T) {
 
 // testAsserter instances will handle the assertions in the testHandler.
 type testAsserter func(job rest.Job) (bool, error)
+
+func newHeaderAsserter(assert audit.Assertion, pattern string) testAsserter {
+	return func(job rest.Job) (bool, error) {
+		token, err := jwt.DecodeFromJob(job)
+		assert.Nil(token)
+		assert.ErrorMatch(err, pattern)
+		job.JSON(true).Write(rest.StatusOK, "OK")
+		return true, nil
+	}
+}
 
 func newDecodeAsserter(assert audit.Assertion, cached bool) testAsserter {
 	var cache jwt.Cache
