@@ -443,7 +443,7 @@ func (c *caller) prepareRequest(method, urlStr string, params *Parameters) (*htt
 		request.Header.Set("Version", params.Version.String())
 	}
 	if params.Token != nil {
-		request = jwt.AddTokenToRequest(request, params.Token)
+		request = jwt.AddToRequest(request, params.Token)
 	}
 	if params.Accept == "" {
 		params.Accept = params.ContentType

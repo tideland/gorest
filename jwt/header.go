@@ -1,6 +1,6 @@
 // Tideland Go REST Server Library - JSON Web Token - Header
 //
-// Copyright (C) 2016 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -16,12 +16,21 @@ import (
 	"strings"
 
 	"github.com/tideland/golib/errors"
+
 	"github.com/tideland/gorest/rest"
 )
 
 //--------------------
 // REQUEST AND JOB HANDLING
 //--------------------
+
+// AddTokenToRequest adds a token as header to a request for
+// usage by a client.
+//
+// DEPRECATED: Now AddToRequest().
+func AddTokenToRequest(req *http.Request, jwt JWT) *http.Request {
+	return AddToRequest(req, jwt)
+}
 
 // AddToRequest adds a token as header to a request for
 // usage by a client.
