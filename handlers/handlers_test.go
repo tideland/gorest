@@ -247,7 +247,7 @@ func TestJWTAuthorizationHandler(t *testing.T) {
 		req := restaudit.NewRequest("GET", "/jwt/"+test.id+"/1234567890")
 		if test.tokener != nil {
 			req.SetRequestProcessor(func(req *http.Request) *http.Request {
-				return jwt.AddTokenToRequest(req, test.tokener())
+				return jwt.AddToRequest(req, test.tokener())
 			})
 		}
 		// Make request(s).

@@ -142,7 +142,7 @@ func (h *jwtAuthorizationHandler) check(job rest.Job) (bool, error) {
 	}
 	// Now do the checks.
 	if err != nil {
-		return h.deny(job, rest.StatusBadRequest, err.Error())
+		return h.deny(job, rest.StatusUnauthorized, err.Error())
 	}
 	if token == nil {
 		return h.deny(job, rest.StatusUnauthorized, "no JSON Web Token")
