@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Request
+// Tideland GoREST - Request
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

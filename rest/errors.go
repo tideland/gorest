@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - REST - Errors
+// Tideland GoREST - REST - Errors
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

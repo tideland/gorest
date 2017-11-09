@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Handlers - JWT Authorization
+// Tideland GoREST - Handlers - JWT Authorization
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

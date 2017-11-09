@@ -1,12 +1,12 @@
-// Tideland Go REST Server Library - REST
+// Tideland GoREST - REST
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-// Package rest of the Tideland Go REST Server Library provides types for
-// the implementation of servers with a RESTful API. The business has to
+// Package rest of Tideland GoREST provides types for the
+// implementation of servers with a RESTful API. The business has to
 // be implemented in types fullfilling the ResourceHandler interface.
 // This basic interface only allows the initialization of the handler.
 // More interesting are the other interfaces like GetResourceHandler

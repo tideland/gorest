@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Request - Unit Tests
+// Tideland GoREST - Request - Unit Tests
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

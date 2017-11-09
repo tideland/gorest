@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Handlers - Audit Handler
+// Tideland GoREST - Handlers - Audit Handler
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Handlers - File Serve
+// Tideland GoREST - Handlers - File Serve
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

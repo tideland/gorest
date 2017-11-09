@@ -1,11 +1,11 @@
-# Tideland Go REST Server Library
+# Tideland GoREST
 
 ## Description
 
-The *Tideland Go REST Server Library* helps developing RESTful server
-systems. It provides a convenient mapping of URL to handlers and methods
-specific to the called HTTP method. Additionally there are helpers for
-marshalling and unmarshalling.
+*Tideland GoREST* helps developing RESTful server systems. It
+provides a convenient mapping of URL to handlers and methods
+specific to the called HTTP method. Additionally there are helpers
+for marshalling and unmarshalling.
 
 The library earlier has been known as `web` package of the
 [Tideland Go Library](https://github.com/tideland/golib).
@@ -20,7 +20,7 @@ I hope you like it. ;)
 
 ## Version
 
-Version 2.15.4
+Version 2.15.5
 
 ## Packages
 

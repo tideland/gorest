@@ -1,13 +1,12 @@
-// Tideland Go REST Server Library - Request
+// Tideland GoREST - Request
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
 
-// Package request of the Tideland Go REST Server Library provides
-// a simple way to handle cross-server requests in the Tideland
-// REST ecosystem.
+// Package request of Tideland GoREST provides a simple way to
+// handle cross-server requests in the Tideland REST ecosystem.
 package request
 
 //--------------------

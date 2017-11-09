@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - REST - Formatter
+// Tideland GoREST - REST - Formatter
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
@@ -40,6 +40,13 @@ const (
 	StatusUnauthorized        = http.StatusUnauthorized
 	StatusForbidden           = http.StatusForbidden
 	StatusNotFound            = http.StatusNotFound
+	StatusMethodNotAllowed    = http.StatusMethodNotAllowed
+	StatusNotAcceptable       = http.StatusNotAcceptable
+	StatusGone                = http.StatusGone
+	StatusPreconditionFailed  = http.StatusPreconditionFailed
+	StatusUnprocessableEntity = http.StatusUnprocessableEntity
+	StatusLocked              = http.StatusLocked
+	StatusTooManyRequests     = http.StatusTooManyRequests
 	StatusConflict            = http.StatusConflict
 	StatusInternalServerError = http.StatusInternalServerError
 )
