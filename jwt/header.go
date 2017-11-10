@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - JSON Web Token - Header
+// Tideland GoREST - JSON Web Token - Header
 //
 // Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

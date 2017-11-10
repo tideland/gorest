@@ -1,22 +1,27 @@
-# Tideland Go REST Server Library
+# Tideland GoREST
 
-## 2017-10-25
+## Version 2.15.5 (2017-11-09)
+
+- Added needed status codes
+- Renamings in docs and comments due to new project name
+
+## Version 2.15.4 (2017-10-25)
 
 - Function `jwt.AddTokenToRequest()` is deprecated, now it
   is `AddToRequest()`; sadly forgot backward compatability,
   so now are both available but first with an according
   comment
 
-## 2017-09-10
+## Version 2.15.3 (2017-09-10)
 
 - Fixed return code in case of not implemented HTTP methods
   to `405` (method not allowed)
 
-## 2017-06-19
+## Version 2.15.2 (2017-06-19)
 
 - Reduced job handling complexity
 
-## 2017-05-15
+## Version 2.15.1 (2017-05-15)
 
 - Changed `Job.Path()` to return a `Path` instance
 - This instance provides access to the different parts
@@ -26,7 +31,7 @@
   `ResourceID()`) while the method `ResourceID()` of path
   returns only the third part of the path
 
-## 2017-04-26
+## Version 2.15.0 (2017-04-26)
 
 - Added access to URL path parts via `Job.Path()`
 - Added interfaces for handler methods directly mapping

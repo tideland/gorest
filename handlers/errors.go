@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Handlers - Errors
+// Tideland GoREST - Handlers - Errors
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

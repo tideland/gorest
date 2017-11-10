@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - JSON Web Token - Unit Tests
+// Tideland GoREST - JSON Web Token - Unit Tests
 //
 // Copyright (C) 2016-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

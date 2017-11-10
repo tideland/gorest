@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - REST - Environment
+// Tideland GoREST - REST - Environment
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //

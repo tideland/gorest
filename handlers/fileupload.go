@@ -1,4 +1,4 @@
-// Tideland Go REST Server Library - Handlers - File Upload
+// Tideland GoREST - Handlers - File Upload
 //
 // Copyright (C) 2009-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
